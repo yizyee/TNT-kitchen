@@ -865,10 +865,13 @@ hr {
         }
         return "线索：已锁定一名密探，但截至本轮记录还未观察到TA与明确菜品的对应。";
       }
+      const dishListStr = shuffleInPlace([...clue.dishes])
+        .map((d) => dishPlainWithEmojiByName(d))
+        .join("、");
       if (game.isSpy) {
-        return `线索：另一名密探队友之前做过的菜有——${clue.dishes.map((d) => dishPlainWithEmojiByName(d)).join("、")}`;
+        return `线索：另一名密探队友之前做过的菜有——${dishListStr}`;
       }
-      return `线索：其中一名密探之前做过的菜有——${clue.dishes.map((d) => dishPlainWithEmojiByName(d)).join("、")}`;
+      return `线索：其中一名密探之前做过的菜有——${dishListStr}`;
     }
     const EVENTS = [
       { name: "拍摄事故", weight: 4, type: "all_fail_redo", desc: "漏拍素材了！所有成员重做本轮" },
@@ -2209,8 +2212,6 @@ hr {
         `<div class="role-badge">${game.isSpy ? "密探🕵️" : "勇士🛡️"} | 主厨: ${escapeHtml(memberWithEmoji(game.mainChar))}</div>` +
         (game.isSpy ? `<div class="sabotage-chance">搞砸剩余: ${game.sabotageLeft}/3</div>` : "") +
         `<div class="status-card">完成菜品: ${successDishes}/7</div>` +
-        (game.dizzyCarbon ? `<div class="status-card" style="background:rgba(221,239,255,0.92);color:#1a3b57;">晕碳(勇士主厨0%成功)</div>` : "") +
-        (game.flowState ? `<div class="status-card" style="background:rgba(216,236,252,0.94);color:#1a3b57;">心流(主厨必成功)</div>` : "") +
         (game.skipMemberNext ? `<div class="status-card">下场跳过: ${escapeHtml(memberWithEmoji(game.skipMemberNext))}</div>` : "") +
         `</div>` +
         `<div class="preview-area"><div class="preview-title">主厨本轮菜品：${dishWithEmojiByIndex(selectedIdx)} · ${escapeHtml(
