@@ -1,0 +1,2489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>炸厨房模拟器 | 综艺回合制 · 密探vs勇士</title>
+  <style>
+    * {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent; /* 去除移动端点击灰色背景 */
+}
+
+:root {
+  --ice-deep: #0a1f3e;
+  --ice-mid: #1f4f76;
+  --ice-light: #3c6e8f;
+  --ice-glass: rgba(236, 247, 255, 0.85);
+  --ice-border: rgba(153, 218, 255, 0.7);
+  --ice-text: #13324d;
+  --ice-text-soft: #274c6c;
+  --ice-cyan: #7fd9ff;
+  --ice-sky: #b7ebff;
+  --ice-shadow: rgba(10, 43, 80, 0.55);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 12px;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--ice-text);
+  background: repeating-linear-gradient(to right, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.04) 1px, transparent 1px, transparent 42px),
+              repeating-linear-gradient(to bottom, rgba(185, 228, 255, 0.03) 0, rgba(185, 228, 255, 0.03) 1px, transparent 1px, transparent 42px),
+              linear-gradient(180deg, #0a1f3e 0%, #3c6e8f 100%);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  position: relative;
+  overflow-x: hidden;
+}
+
+#snowCanvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#gameRoot {
+  width: 100%;
+  position: relative;
+  z-index: 2;
+}
+
+.game-container {
+  max-width: 1400px;
+  width: 100%;
+  background: var(--ice-glass);
+  border-radius: 30px 10px 30px 10px;
+  border: 1px solid var(--ice-border);
+  box-shadow: 0 0 24px rgba(124, 211, 255, 0.45), 0 18px 36px rgba(2, 18, 42, 0.52), inset 0 0 28px rgba(217, 240, 255, 0.16);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow: hidden;
+  padding: 20px 20px 30px;
+  color: var(--ice-text);
+}
+
+/* 移动端缩小内边距 */
+@media (max-width: 640px) {
+  .game-container {
+    padding: 12px 12px 20px;
+  }
+}
+
+.ice-title {
+  margin: 0 0 12px;
+  text-align: center;
+  font-size: clamp(1.4rem, 6vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: 2px;
+  font-style: italic;
+  color: #204d75;
+  text-shadow: 0 1px 0 #ffffff, 0 2px 0 #b9e4ff, 0 3px 0 #8acaf0, 0 6px 8px rgba(122, 186, 222, 0.5), 0 0 12px rgba(255, 255, 255, 0.8);
+  position: relative;
+}
+
+.ice-title::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 25% 30%, rgba(255, 255, 255, 0.45) 0, transparent 24%),
+              radial-gradient(circle at 70% 55%, rgba(208, 244, 255, 0.35) 0, transparent 22%),
+              linear-gradient(120deg, transparent 10%, rgba(255, 255, 255, 0.28) 50%, transparent 90%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.status-bar {
+  background: rgba(230, 245, 255, 0.78);
+  border: 1px solid rgba(153, 218, 255, 0.65);
+  border-radius: 20px 8px 20px 8px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+  box-shadow: inset 0 0 18px rgba(200, 242, 255, 0.18);
+  font-weight: bold;
+}
+
+.status-card,
+.role-badge,
+.sabotage-chance {
+  background: rgba(228, 244, 255, 0.86);
+  border: 1px solid rgba(163, 221, 255, 0.6);
+  padding: 6px 12px;
+  border-radius: 16px 6px 16px 6px;
+  color: var(--ice-text);
+  font-size: 0.8rem;
+  text-shadow: none;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .status-card, .role-badge, .sabotage-chance {
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    white-space: normal;
+    word-break: keep-all;
+  }
+}
+
+.dishes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 500px) {
+  .dishes-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+  }
+}
+
+.dish-card {
+  background: rgba(235, 247, 255, 0.88);
+  border-radius: 24px 8px 24px 8px;
+  padding: 10px;
+  box-shadow: inset 0 0 20px rgba(220, 245, 255, 0.14), 0 8px 14px rgba(5, 28, 58, 0.35);
+  cursor: pointer;
+  border: 1px solid rgba(151, 220, 255, 0.72);
+  transition: transform 0.12s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  touch-action: manipulation;
+}
+
+.dish-card:active {
+  transform: scale(0.98);
+}
+
+.dish-card.selected {
+  background: rgba(221, 241, 255, 0.95);
+  border: 2px solid #96dcff;
+  box-shadow: 0 0 20px rgba(133, 223, 255, 0.85), inset 0 0 24px rgba(222, 249, 255, 0.26);
+  transform: scale(0.985);
+}
+
+.dish-card.locked {
+  opacity: 0.52;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+}
+
+.dish-card.done-card {
+  border-color: #7cd3ff;
+}
+
+.dish-settle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.dish-settle-card {
+  background: rgba(232, 246, 255, 0.9);
+  border-radius: 16px 6px 16px 6px;
+  padding: 10px 10px 12px;
+  border: 1px solid rgba(147, 211, 255, 0.55);
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.preview-area {
+  background: rgba(234, 246, 255, 0.82);
+  border-radius: 24px 8px 24px 8px;
+  padding: 14px;
+  margin: 16px 0;
+  border: 1px solid rgba(155, 218, 255, 0.55);
+  box-shadow: inset 0 0 14px rgba(220, 245, 255, 0.14);
+}
+
+.preview-title {
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+
+.preview-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.preview-card {
+  background: rgba(233, 246, 255, 0.9);
+  border-radius: 18px 8px 18px 8px;
+  padding: 8px 12px;
+  min-width: 150px;
+  flex: 1 1 auto;
+  border-left: 5px solid rgba(107, 209, 255, 0.8);
+  border-top: 1px solid rgba(168, 229, 255, 0.5);
+  box-shadow: 0 6px 14px rgba(6, 33, 65, 0.25);
+}
+
+@media (max-width: 550px) {
+  .preview-card {
+    min-width: 130px;
+    padding: 6px 10px;
+  }
+  .preview-name {
+    font-size: 0.85rem;
+  }
+  .preview-detail {
+    font-size: 0.7rem;
+  }
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 20px 0 8px;
+}
+
+.btn {
+  border: none;
+  color: #10304d;
+  background: linear-gradient(155deg, #b9eaff 0%, #66bbe9 45%, #2f78a9 100%);
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 18px 8px 18px 8px;
+  border: 1px solid rgba(185, 235, 255, 0.8);
+  cursor: pointer;
+  box-shadow: 0 6px 0 rgba(31, 83, 121, 0.95), 0 10px 18px rgba(3, 24, 48, 0.35);
+  transition: transform 0.12s ease, box-shadow 0.18s ease;
+  touch-action: manipulation;
+  min-width: 110px;
+}
+
+@media (max-width: 480px) {
+  .btn {
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    min-width: 90px;
+  }
+}
+
+.btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 0 rgba(31, 83, 121, 0.95), 0 6px 12px rgba(3, 24, 48, 0.34);
+}
+
+.teammates-panel {
+  background: rgba(233, 246, 255, 0.84);
+  border-radius: 24px 8px 24px 8px;
+  padding: 14px;
+  margin-top: 10px;
+  border: 1px solid rgba(157, 221, 255, 0.5);
+}
+
+.teammates-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.teammate-card {
+  background: rgba(234, 247, 255, 0.92);
+  border-radius: 16px 6px 16px 6px;
+  padding: 8px 14px;
+  font-weight: bold;
+  border: 1px solid rgba(164, 225, 255, 0.58);
+  color: var(--ice-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: all 0.08s linear;
+  min-height: 48px;
+}
+
+.teammate-card:active {
+  transform: scale(0.96);
+  background: rgba(185, 228, 252, 0.5);
+}
+
+button.teammate-card.assist-selected {
+  background: rgba(166, 223, 255, 0.5);
+  border: 2px solid #8ad8ff;
+  box-shadow: 0 0 12px rgba(113, 210, 255, 0.7);
+}
+
+.sabotage-choice .btn {
+  min-width: 80px;
+  padding: 10px 20px;
+}
+
+.btn-choice-on {
+  outline: 3px solid #8fdfff;
+  outline-offset: 2px;
+  filter: brightness(1.02);
+}
+
+dialog {
+  border: none;
+  border-radius: 24px 8px 24px 8px;
+  padding: 0;
+  max-width: min(680px, 94vw);
+  width: 100%;
+  background: rgba(226, 243, 255, 0.96);
+  border: 1px solid rgba(155, 220, 255, 0.65);
+  box-shadow: 0 24px 60px rgba(0, 15, 34, 0.55);
+  color: #0f2f4a;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+dialog::backdrop {
+  background: rgba(8, 22, 44, 0.82);
+}
+
+.dialog-inner {
+  padding: 20px 18px 24px;
+  max-height: 80vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dialog-inner h3 {
+  margin: 0 0 10px;
+  color: #123855;
+  font-size: 1.3rem;
+}
+
+.dialog-msg-body {
+  margin: 0 0 8px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #153a58;
+  font-size: 0.95rem;
+}
+
+.result-row {
+  margin: 8px 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(163, 224, 255, 0.4);
+  word-break: break-word;
+}
+
+.result-row .success,
+.settle-line .success,
+li .success {
+  color: #0d7a3d;
+  font-weight: 700;
+}
+
+.result-row .fail,
+.settle-line .fail,
+li .fail {
+  color: #c62828;
+  font-weight: 700;
+}
+
+.dish-emoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.settle-emoji {
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.settle-name {
+  font-weight: 700;
+  margin: 4px 0 6px;
+  font-size: 0.8rem;
+}
+
+.settle-line {
+  font-size: 0.72rem;
+  text-align: left;
+  margin: 4px 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.game-over-line {
+  margin: 10px 0;
+  line-height: 1.55;
+  font-size: 1.05rem;
+  color: #153a58;
+}
+
+.game-over-line--title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #204d75;
+}
+
+.game-over-line--sub {
+  font-size: 0.92rem;
+  color: #2c5475;
+}
+
+.fail-reason-btn {
+  background: linear-gradient(160deg, #9edfff, #4ca8de);
+  color: #0f2f49;
+  border: none;
+  border-radius: 12px 4px 12px 4px;
+  padding: 5px 12px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  margin-left: 8px;
+  touch-action: manipulation;
+}
+
+.fail-reason-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+}
+
+.fail-reason-box {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #153a58;
+  background: rgba(255, 248, 225, 0.88);
+  border-radius: 10px 4px 10px 4px;
+  border: 1px solid rgba(214, 160, 110, 0.45);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.close-btn {
+  display: block;
+  margin: 20px auto 0;
+  color: #12324f;
+  background: linear-gradient(155deg, #beefff 0%, #63bee8 50%, #306f9b 100%);
+  border: none;
+  padding: 12px 28px;
+  border-radius: 16px 6px 16px 6px;
+  font-weight: bold;
+  cursor: pointer;
+  border: 1px solid rgba(185, 234, 255, 0.78);
+  box-shadow: 0 4px 0 rgba(31, 83, 121, 0.9);
+  touch-action: manipulation;
+  font-size: 1rem;
+}
+
+.accuse-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.accuse-list label {
+  background: rgba(227, 243, 255, 0.9);
+  padding: 10px 16px;
+  border-radius: 14px 6px 14px 6px;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid rgba(155, 215, 255, 0.52);
+  touch-action: manipulation;
+  font-size: 0.9rem;
+  flex: 0 0 auto;
+}
+
+.hint-small {
+  font-size: 0.75rem;
+  color: #2c5475;
+  margin-top: 8px;
+}
+
+.dish-emoji-slot {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto;
+  border-radius: 16px 6px 16px 6px;
+  border: 1px dashed rgba(173, 232, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(235, 247, 255, 0.9);
+  overflow: hidden;
+}
+
+@media (max-width: 480px) {
+  .dish-emoji-slot {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+.dish-name {
+  font-weight: bold;
+  text-align: center;
+  margin: 6px 0;
+  font-size: 0.85rem;
+  word-break: break-word;
+}
+
+.step-progress {
+  background: rgba(168, 214, 245, 0.25);
+  border-radius: 30px;
+  height: 10px;
+  margin: 6px 0;
+  border: 1px solid rgba(143, 211, 255, 0.45);
+}
+
+.step-fill {
+  background: linear-gradient(90deg, #6bd1ff 0%, #2a6f9c 100%);
+  height: 100%;
+  border-radius: 30px;
+  box-shadow: 0 0 10px rgba(113, 214, 255, 0.75);
+}
+
+.step-text {
+  font-size: 0.65rem;
+  text-align: center;
+  font-weight: 500;
+}
+
+.mastery-stars {
+  letter-spacing: 1px;
+  color: #4b7598;
+  font-size: 0.85rem;
+}
+
+hr {
+  margin: 12px 0;
+  border: none;
+  border-top: 1px solid rgba(172, 224, 255, 0.4);
+}
+  </style>
+</head>
+<body>
+  <canvas id="snowCanvas" aria-hidden="true"></canvas>
+  <div id="gameRoot"></div>
+
+  <dialog id="dlgRound">
+    <div class="dialog-inner">
+      <h3 id="dlgRoundTitle">轮次结算</h3>
+      <p class="event-line" id="dlgRoundEvent"></p>
+      <hr />
+      <div id="dlgRoundBody"></div>
+      <p class="hint-small">每轮仅可查看 1 次失败原因（点击「查看原因」按钮）。</p>
+      <button type="button" class="close-btn" id="dlgRoundClose">继续</button>
+    </div>
+  </dialog>
+
+  <dialog id="dlgAccuse">
+    <div class="dialog-inner">
+      <h3>最终检举</h3>
+      <p id="dlgAccuseHint"></p>
+      <div class="accuse-list" id="dlgAccuseList"></div>
+      <button type="button" class="close-btn" id="dlgAccuseSubmit">确定检举</button>
+    </div>
+  </dialog>
+
+  <dialog id="dlgSpyMate">
+    <div class="dialog-inner">
+      <h3>终局环节</h3>
+      <p id="dlgSpyMateHint"></p>
+      <div class="accuse-list" id="dlgSpyMateList"></div>
+      <button type="button" class="close-btn" id="dlgSpyMateSubmit">确定选择</button>
+    </div>
+  </dialog>
+
+  <dialog id="dlgIdentity">
+    <div class="dialog-inner">
+      <h3>身份揭示</h3>
+      <div id="identityContent"></div>
+      <button type="button" class="close-btn" id="btnIdentityConfirm">开始游戏</button>
+    </div>
+  </dialog>
+
+  <dialog id="dlgMsg">
+    <div class="dialog-inner">
+      <h3 id="dlgMsgTitle">提示</h3>
+      <p id="dlgMsgBody" class="dialog-msg-body"></p>
+      <button type="button" class="close-btn" id="dlgMsgClose">知道了</button>
+    </div>
+  </dialog>
+
+  <script>
+    const DISHES = ["糖拌西红柿", "清炒土豆丝", "土豆丝炒肉", "辣椒炒肉", "炝炒包菜", "两棵柳树扭三扭", "可乐鸡全翅"];
+    const DISH_EMOJI = ["🍅", "🥔", "🥩", "🌶️", "🥬", "🥗", "🍗"];
+    const CUSTOM_STEPS = {
+      "糖拌西红柿": ["备菜", "给西红柿撒糖", "拌匀糖", "装盘"],
+      "清炒土豆丝": ["备菜", "炒土豆丝", "撒盐", "装盘"],
+      "土豆丝炒肉": ["备菜", "炒土豆丝", "加上肉一起炒", "装盘"],
+      "辣椒炒肉": ["备菜", "干煸辣椒", "加上肉一起炒", "装盘"],
+      "炝炒包菜": ["备菜", "炒包菜", "加辣加醋", "装盘"],
+      "两棵柳树扭三扭": ["备菜", "烫熟菜", "设计摆盘", "装盘"],
+      "可乐鸡全翅": ["备菜", "下锅鸡翅", "收汁", "装盘"]
+    };
+    const MEMBERS = ["马哥", "丁哥", "轩哥", "文哥", "张哥", "翔哥", "贺哥"];
+    const MEMBER_EMOJI = {
+      马哥: "🐕",
+      丁哥: "🦊",
+      轩哥: "🐶",
+      文哥: "🐺",
+      张哥: "🐿️",
+      翔哥: "🐻",
+      贺哥: "🐰"
+    };
+    const LEGACY_RANK_CHAR = { 文: "文哥", 张: "张哥", 翔: "翔哥", 贺: "贺哥", 马: "马哥", 丁: "丁哥", 宋: "轩哥" };
+    function expandRankLegacy(s) {
+      return [...String(s)]
+        .map((ch) => LEGACY_RANK_CHAR[ch] || ch)
+        .join("");
+    }
+    const RANK_MATRIX = {
+      "糖拌西红柿_0": expandRankLegacy("文张翔贺马丁宋"),
+      "糖拌西红柿_1": expandRankLegacy("贺马宋张丁文翔"),
+      "糖拌西红柿_2": expandRankLegacy("翔马文宋丁张贺"),
+      "糖拌西红柿_3": expandRankLegacy("张丁贺翔文宋马"),
+      "清炒土豆丝_0": expandRankLegacy("张翔贺马丁宋文"),
+      "清炒土豆丝_1": expandRankLegacy("马宋张丁文翔贺"),
+      "清炒土豆丝_2": expandRankLegacy("马文宋丁张贺翔"),
+      "清炒土豆丝_3": expandRankLegacy("丁贺翔文宋马张"),
+      "土豆丝炒肉_0": expandRankLegacy("翔贺马丁宋文张"),
+      "土豆丝炒肉_1": expandRankLegacy("宋张丁文翔贺马"),
+      "土豆丝炒肉_2": expandRankLegacy("文宋丁张贺翔马"),
+      "土豆丝炒肉_3": expandRankLegacy("贺翔文宋马张丁"),
+      "辣椒炒肉_0": expandRankLegacy("贺马丁宋文张翔"),
+      "辣椒炒肉_1": expandRankLegacy("张丁文翔贺马宋"),
+      "辣椒炒肉_2": expandRankLegacy("宋丁张贺翔马文"),
+      "辣椒炒肉_3": expandRankLegacy("翔文宋马张丁贺"),
+      "炝炒包菜_0": expandRankLegacy("马丁宋文张翔贺"),
+      "炝炒包菜_1": expandRankLegacy("丁文翔贺马宋张"),
+      "炝炒包菜_2": expandRankLegacy("丁张贺翔马文宋"),
+      "炝炒包菜_3": expandRankLegacy("文宋马张丁贺翔"),
+      "两棵柳树扭三扭_0": expandRankLegacy("宋文张翔贺马丁"),
+      "两棵柳树扭三扭_1": expandRankLegacy("文翔贺马宋张丁"),
+      "两棵柳树扭三扭_2": expandRankLegacy("张贺翔马文宋丁"),
+      "两棵柳树扭三扭_3": expandRankLegacy("宋马张丁贺翔文"),
+      "可乐鸡全翅_0": expandRankLegacy("丁宋文张翔贺马"),
+      "可乐鸡全翅_1": expandRankLegacy("翔贺马宋张丁文"),
+      "可乐鸡全翅_2": expandRankLegacy("贺翔马文宋丁张"),
+      "可乐鸡全翅_3": expandRankLegacy("马张丁贺翔文宋")
+    };
+    /** 策划案 7.3：每菜每环节 [1级][2级][3级] 各为若干条，用随机一条 */
+    const FAIL_STEP_PLATTER = [
+      ["装盘不够整齐", "摆盘稍显仓促", "上桌前碰歪装饰"],
+      ["装盘时汤汁外流", "分装不均", "碗沿酱渍明显"],
+      ["整盘滑落摔碎", "端盘被道具刮翻", "展示盖揭开太猛菜洒出"]
+    ];
+    const DISH_FAIL_REASONS = {
+      糖拌西红柿: [
+        [
+          ["把番茄切成了很大一块", "切得大小不一", "西红柿太生"],
+          ["西红柿切好后出水太多", "西红柿放太久烂了"],
+          ["切完西红柿掉了，捡起来继续使用", "连带果蒂硬芯一同拌入"]
+        ],
+        [
+          ["糖放太少", "用了冰糖没化开"],
+          ["糖直接堆成小山，没化开", "撒糖时手抖，糖全撒地上了"],
+          ["把盐当成糖撒了一大把", "制作途中偷吃至食材耗尽"]
+        ],
+        [
+          ["拌太用力，西红柿碎烂不成形", "没拌匀"],
+          ["搅拌时汁水四处飞溅", "失手将整盘打翻在地"],
+          ["大力搅拌致使番茄块飞散", "直接用手抓拌沾满汁水"]
+        ],
+        FAIL_STEP_PLATTER
+      ],
+      清炒土豆丝: [
+        [
+          ["土豆丝切得粗细不均", "土豆丝切得过长", "土豆没去皮"],
+          ["土豆丝没泡水，炒完发黑", "土豆丝泡水太久变软"],
+          ["土豆丝掉地上捡起来继续用", "连带土豆芽和坏块一起切进去"]
+        ],
+        [
+          ["火候太小炒得绵软不脆", "火候太大糊底发苦"],
+          ["没及时翻面导致局部焦糊", "加水过多炒成土豆泥"],
+          ["翻炒时表演甩锅，土豆丝飞溅出锅", "中途加醋过量破坏口感"]
+        ],
+        [
+          ["盐放太少淡而无味", "盐粒撒在锅底没拌匀"],
+          ["盐放太多齁咸难咽", "撒盐时撒到土豆丝炒肉那个锅里了"],
+          ["把糖当成盐", "炒到一半偷吃大半土豆丝"]
+        ],
+        FAIL_STEP_PLATTER
+      ],
+      土豆丝炒肉: [
+        [
+          ["肉和土豆丝都切得粗细不一", "肉丝切得过大不入味"],
+          ["土豆丝没泡水发黑发黏", "肉丝没腌制直接下锅易柴"],
+          ["把配菜里的葱姜蒜加进土豆丝", "土豆和肉没洗净就直接切"]
+        ],
+        [
+          ["火候没掌握好，土豆丝外熟里生", "翻炒太轻导致底部粘锅"],
+          ["中途忘记开抽油烟机，满屋子油烟", "油溅出来吓得乱颠锅"],
+          ["土豆丝全糊了", "颠锅炫技，土豆丝飞一地"]
+        ],
+        [
+          ["肉丝下锅太早炒干发柴", "调味只淋在一边没炒匀"],
+          ["把料酒当醋倒进去，味道奇怪", "加水太多直接煮成土豆肉汤"],
+          ["炒着炒着把别的菜也倒进去乱炖", "边炒边挑肉吃，最后只剩土豆丝"]
+        ],
+        FAIL_STEP_PLATTER
+      ],
+      辣椒炒肉: [
+        [
+          ["肉和辣椒切得大小不一", "辣椒籽没去干净", "肉没洗净带血水"],
+          ["肉没腌制好", "辣椒切好放太久变软发蔫"],
+          ["把辣椒梗当辣椒一起切", "备的辣椒比肉多"]
+        ],
+        [
+          ["辣椒干煸过轻不香", "干煸之前锅里倒油"],
+          ["辣椒煸太久发苦发黑", "火没控好，辣椒局部焦糊"],
+          ["辣椒全撒灶台", "辣椒全烧焦了"]
+        ],
+        [
+          ["火太小肉炒得发柴", "油放太多"],
+          ["翻炒不勤粘锅糊底", "肉没煮熟"],
+          ["肉全烧焦了", "叫队友尝尝味道，吃了半锅肉"]
+        ],
+        FAIL_STEP_PLATTER
+      ],
+      炝炒包菜: [
+        [
+          ["包菜撕得大小不均", "菜梗没切掉太硬", "没沥干水分"],
+          ["包菜没洗干净带泥沙", "切好放太久发黄发软"],
+          ["把烂菜叶混在好菜叶里", "大块包菜硬梗没切"]
+        ],
+        [
+          ["火候偏小炒得软烂出水", "翻炒过轻导致底部粘锅"],
+          ["下锅时水分没控干，油花疯狂飞溅", "翻炒太慢整锅发黏结块"],
+          ["开最大火空烧半天才下菜，包菜瞬间焦黑冒烟", "包菜一面全糊一面还是生的"]
+        ],
+        [
+          ["醋放太少了", "辣椒放少了"],
+          ["醋倒太多了", "辣椒撒偏落在锅外"],
+          ["错把生抽当醋猛倒", "加了老干妈"]
+        ],
+        FAIL_STEP_PLATTER
+      ],
+      两棵柳树扭三扭: [
+        [
+          ["把番茄切成了很厚一块", "切得大小不一", "西红柿太生"],
+          ["西红柿切好后出水太多", "西红柿放太久烂了"],
+          ["切完西红柿掉了，捡起来继续使用", "把西红柿切成了番茄酱"]
+        ],
+        [
+          ["烫太久菜叶软烂变形", "烫太生生涩难嚼"],
+          ["烫的时候没翻动，受热不均", "水太多捞起带大量水分"],
+          ["烫菜时加了酱油", "烫完捞出来不知道放哪去了"]
+        ],
+        [
+          ["摆得歪歪扭扭不整齐", "左右不对称"],
+          ["摆的时候菜断了", "摆盘时番茄烂了"],
+          ["摆得只看到番茄看不到菜", "用沙拉酱做了个时尚造型"]
+        ],
+        FAIL_STEP_PLATTER
+      ],
+      可乐鸡全翅: [
+        [
+          ["鸡翅没改刀不入味", "没沥干水分容易溅油"],
+          ["鸡翅没洗净带血水", "腌制时间太短没味道"],
+          ["鸡翅带鸡毛没拔干净", "忘记腌制"]
+        ],
+        [
+          ["火太小煎不透", "火太大外皮焦糊"],
+          ["翻动导致鸡翅散架", "油放太少粘锅"],
+          ["没放调味剂", "煎到一半忘记翻面直接煎焦"]
+        ],
+        [
+          ["收汁太干发苦", "没收汁汤汁太多"],
+          ["可乐倒太多味道发甜腻", "火太大糊底发苦"],
+          ["往锅里再加了半瓶可乐，直接变成煮鸡翅", "忘记翻动，让锅底整块糊成黑炭"]
+        ],
+        FAIL_STEP_PLATTER
+      ]
+    };
+
+    function pickDishFailMsg(dishName, stepIdx, level) {
+      const lv = Math.max(1, Math.min(3, level | 0));
+      const steps = DISH_FAIL_REASONS[dishName];
+      if (steps && steps[stepIdx]) {
+        const lvlArr = steps[stepIdx][lv - 1];
+        if (lvlArr && lvlArr.length) {
+          return lvlArr[Math.floor(Math.random() * lvlArr.length)];
+        }
+      }
+      const fb = FAIL_STEP_PLATTER[lv - 1];
+      return fb[Math.floor(Math.random() * fb.length)];
+    }
+
+    function collectSingleSpyTouchedDishNames(tasks) {
+      let targetSpy = null;
+      if (game.isSpy) {
+        targetSpy = game.spyMate || null;
+      } else {
+        const spies = game.spyMates && game.spyMates.length ? game.spyMates : [];
+        if (!spies.length) return null;
+        targetSpy = spies[Math.floor(Math.random() * spies.length)];
+      }
+      if (!targetSpy) return null;
+      const names = new Set();
+      for (const row of game.stepHistory) {
+        if (row.member === targetSpy && row.dishName) names.add(row.dishName);
+      }
+      if (tasks && tasks.length) {
+        for (const t of tasks) {
+          if (t.member === targetSpy && t.dishName) names.add(t.dishName);
+        }
+      }
+      return { spy: targetSpy, dishes: [...names] };
+    }
+
+    function buildInsightHintSentence(tasks) {
+      const clue = collectSingleSpyTouchedDishNames(tasks);
+      if (!clue) {
+        return "线索：当前没有可用的密探信息。";
+      }
+      if (!clue.dishes.length) {
+        if (game.isSpy) {
+          return `线索：已关注另一名密探队友${memberWithEmoji(clue.spy)}，但截至本轮记录还未观察到TA与明确菜品的对应。`;
+        }
+        return "线索：已锁定一名密探，但截至本轮记录还未观察到TA与明确菜品的对应。";
+      }
+      if (game.isSpy) {
+        return `线索：另一名密探队友之前做过的菜有——${clue.dishes.map((d) => dishPlainWithEmojiByName(d)).join("、")}`;
+      }
+      return `线索：其中一名密探之前做过的菜有——${clue.dishes.map((d) => dishPlainWithEmojiByName(d)).join("、")}`;
+    }
+    const EVENTS = [
+      { name: "拍摄事故", weight: 4, type: "all_fail_redo", desc: "漏拍素材了！所有成员重做本轮" },
+      { name: "神来之笔", weight: 10, type: "single_next_success", desc: "随机一名成员下轮必成功" },
+      { name: "温馨提示", weight: 10, type: "hint", desc: "勇士获得提示/密探将增加一次搞砸的机会" },
+      { name: "神来之手", weight: 5, type: "fast_forward", desc: "勇士下一轮成功时连进两步/密探下一轮回到上一步" },
+      { name: "心神领会", weight: 15, type: "insight", desc: "获得线索" },
+      { name: "全员爆发", weight: 4, type: "all_success", desc: "全员本轮直接成功" },
+      { name: "休息一下", weight: 6, type: "skip_next", desc: "随机队友下轮不能上场" },
+      { name: "风平浪静", weight: 45, type: "none", desc: "无事发生" }
+    ];
+
+    let game = {
+      round: 1,
+      isSpy: false,
+      mainChar: "",
+      spyMate: "",
+      spyMates: [],
+      sabotageLeft: 0,
+      warriorSpySabotageLeft: 0,
+      dishesProgress: [0, 0, 0, 0, 0, 0, 0],
+      /** 每道菜从备菜重开后的段号，写入 stepHistory 用于回顾只显示最后一段 */
+      dishRunEpoch: [0, 0, 0, 0, 0, 0, 0],
+      dishNeedRedo: {},
+      dishCompletionOrder: [],
+      stepHistory: [],
+      /** 与每回合结算弹窗 body 完全一致的一行行快照（终局各菜回顾专用） */
+      settlementRecapLog: [],
+      selectedDishIdx: 0,
+      helpTarget: null,
+      frameTarget: null,
+      dizzyCarbon: false,
+      flowState: false,
+      modeImpactNoteNextSettle: "",
+      skipMemberNext: null,
+      /** 神来之手：下一轮结算时该菜成功推进则额外多进一步（连进两步） */
+      ffNextRoundDishIdx: null,
+      /** 神来之手：下一轮开始时该菜先退回上一步 */
+      rewindNextRoundDishIdx: null,
+      guaranteedNext: null,
+      roundEndLock: false,
+      gameOver: false,
+      endSummary: null,
+      /** 密探：本轮是否搞砸主厨步骤（是/否） */
+      intendSabotage: false,
+      /** 本轮分工预览快照：避免点选帮助/甩锅时重洗分工或露出修饰效果 */
+      previewSnapshotKey: "",
+      previewSnapshotTasks: null,
+      /** 终局主厨评价用：指认密探前的完成菜数（勇士线） */
+      preAccusationDishCount: null,
+      /** 密探主动搞砸主厨步的轮次数 */
+      spySabotageRounds: 0,
+      /** 曾在装盘步搞砸过的菜索引（用于「一锤定音」） */
+      platterSabotageDishIndices: [],
+      everDizzyCarbon: false,
+      everFlowState: false
+    };
+
+    function dishDisplayOrder() {
+      const order = [];
+      for (const idx of game.dishCompletionOrder) order.push(idx);
+      for (let i = 0; i < DISHES.length; i++) {
+        if (!order.includes(i)) order.push(i);
+      }
+      return order;
+    }
+
+    function pickDishIdxForEvent(needForward) {
+      const opts = [];
+      for (let i = 0; i < DISHES.length; i++) {
+        const p = game.dishesProgress[i];
+        if (p >= 4) continue;
+        if (needForward) {
+          // 任意未完成的菜都可被「下一轮连进两步」选中（含尚未开做的 p===0）
+          opts.push(i);
+        } else if (p > 0) {
+          opts.push(i);
+        }
+      }
+      if (!opts.length) return -1;
+      return opts[Math.floor(Math.random() * opts.length)];
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function memberEmoji(name) {
+      return MEMBER_EMOJI[name] || "❄️";
+    }
+
+    /** 角色名后紧跟 emoji，便于区分 */
+    function memberWithEmoji(name) {
+      if (!name) return "";
+      return `${name}${memberEmoji(name)}`;
+    }
+
+    function dishEmojiByIndex(idx) {
+      return DISH_EMOJI[idx] || "🍽️";
+    }
+
+    function dishWithEmojiByIndex(idx) {
+      const n = DISHES[idx];
+      if (n == null) return "";
+      return `${dishEmojiByIndex(idx)}${escapeHtml(n)}`;
+    }
+
+    function dishWithEmojiByName(dishName) {
+      const idx = DISHES.indexOf(dishName);
+      if (idx < 0) return escapeHtml(dishName);
+      return `${dishEmojiByIndex(idx)}${escapeHtml(dishName)}`;
+    }
+
+    /** 纯文本场景（事件播报等）用，不含 HTML 转义片段 */
+    function dishPlainWithEmojiByName(dishName) {
+      const idx = DISHES.indexOf(dishName);
+      if (idx < 0) return String(dishName);
+      return `${dishEmojiByIndex(idx)}${DISHES[idx]}`;
+    }
+
+    /** 与页面内 dialog 画风一致的提示框，替代 alert */
+    function showAlertDialog(message, title) {
+      const dlg = document.getElementById("dlgMsg");
+      const titleEl = document.getElementById("dlgMsgTitle");
+      const bodyEl = document.getElementById("dlgMsgBody");
+      titleEl.textContent = title || "提示";
+      bodyEl.textContent = message == null ? "" : String(message);
+      if (typeof dlg.showModal === "function") {
+        try {
+          dlg.showModal();
+          return;
+        } catch (e) {
+          /* 个别环境下嵌套 showModal 可能抛错，退回非模态 open */
+        }
+      }
+      dlg.setAttribute("open", "open");
+    }
+
+    document.getElementById("dlgMsgClose").addEventListener("click", () => {
+      const dlg = document.getElementById("dlgMsg");
+      if (typeof dlg.close === "function") dlg.close();
+      else dlg.removeAttribute("open");
+    });
+
+    /** 将 RANK_MATRIX 中拼接的「马哥丁哥…」顺序解析为成员数组 */
+    function parseRankOrder(rankStr) {
+      const order = [];
+      if (!rankStr) return order;
+      let i = 0;
+      while (i < rankStr.length) {
+        let matched = null;
+        for (const m of MEMBERS) {
+          if (rankStr.slice(i, i + m.length) === m) {
+            matched = m;
+            break;
+          }
+        }
+        if (!matched) break;
+        order.push(matched);
+        i += matched.length;
+      }
+      return order;
+    }
+
+    function getBaseRate(member, dishName, stepIdx) {
+      const key = `${dishName}_${stepIdx}`;
+      const rankStr = RANK_MATRIX[key];
+      if (!rankStr) return 60;
+      const order = parseRankOrder(rankStr);
+      const pos = order.indexOf(member);
+      if (pos === -1) return 60;
+      const rate = 80 - pos * 5;
+      return Math.min(80, Math.max(50, rate));
+    }
+
+    /** 1～7 颗星：排名越靠前掌握度越高 */
+    function getMasteryStarCount(member, dishName, stepIdx) {
+      const key = `${dishName}_${stepIdx}`;
+      const rankStr = RANK_MATRIX[key];
+      if (!rankStr) return 4;
+      const order = parseRankOrder(rankStr);
+      const pos = order.indexOf(member);
+      if (pos === -1) return 4;
+      return Math.max(1, Math.min(7, 7 - pos));
+    }
+
+    function formatMasteryStars(count) {
+      const n = Math.max(1, Math.min(7, Math.round(count)));
+      const filled = "★".repeat(n);
+      const empty = "☆".repeat(7 - n);
+      return `<span class="mastery-stars">${filled}${empty}</span>`;
+    }
+
+    function shuffleInPlace(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function generatePreviewTasks(selectedDishIdx, mainMember, options) {
+      const applyAssistModifiers = !options || options.applyAssistModifiers !== false;
+      const tasks = [];
+      const stepMain = game.dishesProgress[selectedDishIdx];
+      const mainDishName = DISHES[selectedDishIdx];
+
+      const incomplete = [];
+      for (let i = 0; i < DISHES.length; i++) {
+        if (game.dishesProgress[i] < 4) incomplete.push(i);
+      }
+      const otherDishesPool = incomplete.filter((i) => i !== selectedDishIdx);
+      const pool = otherDishesPool.slice();
+      shuffleInPlace(pool);
+      const otherMembers = MEMBERS.filter((m) => m !== mainMember);
+      shuffleInPlace(otherMembers);
+      const canAssignOneDishPerMember = incomplete.length >= MEMBERS.length;
+
+      for (let k = 0; k < otherMembers.length; k++) {
+        const member = otherMembers[k];
+        let dishIdx = selectedDishIdx;
+        if (pool.length > 0) {
+          // 菜量足够覆盖全员时默认一人一道；仅在部分菜已提前完成时才可能触发同菜合作
+          const shouldCoopWithMain = !canAssignOneDishPerMember && Math.random() < 0.35;
+          dishIdx = shouldCoopWithMain ? selectedDishIdx : pool[k % pool.length];
+        }
+        const stepIdx = game.dishesProgress[dishIdx];
+        const dishName = DISHES[dishIdx];
+        let baseRate = getBaseRate(member, dishName, stepIdx);
+        if (!game.isSpy && (game.spyMates || []).includes(member)) baseRate = Math.max(0, baseRate - 20);
+        if (!game.isSpy && !(game.spyMates || []).includes(member) && Math.random() < 0.5) {
+          let bestRate = 0;
+          for (let st = 0; st < 4; st++) bestRate = Math.max(bestRate, getBaseRate(member, dishName, st));
+          baseRate = Math.min(80, Math.max(baseRate, bestRate - 3));
+        }
+        tasks.push({
+          member,
+          dishIdx,
+          stepIdx,
+          dishName,
+          baseRateRaw: baseRate
+        });
+      }
+
+      let mainRate = getBaseRate(mainMember, mainDishName, stepMain);
+      if (game.isSpy) mainRate -= 10;
+      else mainRate += 10;
+      if (game.flowState && game.isSpy) mainRate = 100;
+      if (game.dizzyCarbon && !game.isSpy) mainRate = 0;
+      tasks.unshift({
+        member: mainMember,
+        dishIdx: selectedDishIdx,
+        stepIdx: stepMain,
+        dishName: mainDishName,
+        baseRateRaw: mainRate,
+        isMain: true
+      });
+      if (applyAssistModifiers) applyAssistModifiersToTasks(tasks);
+      let out = tasks;
+      if (game.skipMemberNext) out = out.filter((t) => t.member !== game.skipMemberNext);
+      annotateCooperativeGroups(out);
+      return out;
+    }
+
+    /** 与预览分工相同的人选与基础成功率上，叠加帮助/甩锅（结算用，不改变快照） */
+    function applyAssistModifiersToTasks(tasks) {
+      if (game.helpTarget && !game.isSpy) {
+        const helpTask = tasks.find((t) => t.member === game.helpTarget);
+        if (helpTask) {
+          helpTask.baseRateRaw += 15;
+          if ((game.spyMates || []).includes(game.helpTarget)) {
+            helpTask.forceSuccessByHelp = true;
+            helpTask.coopRateBonusFromSpyHelp = 10;
+          }
+        }
+      }
+      if (game.frameTarget && game.isSpy) {
+        const frameTask = tasks.find((t) => t.member === game.frameTarget);
+        if (frameTask) {
+          frameTask.baseRateRaw -= 15;
+          if (game.frameTarget === game.spyMate) {
+            frameTask.forceFailPreview = true;
+            frameTask.coopRatePenaltyFromSpyFrame = 10;
+          }
+        }
+      }
+    }
+
+    /** 同一道菜同一当前环节多人时标记合作组，用于预览与结算 */
+    function annotateCooperativeGroups(tasks) {
+      const m = new Map();
+      for (const t of tasks) {
+        const k = `${t.dishIdx}|${t.stepIdx}`;
+        if (!m.has(k)) m.set(k, []);
+        m.get(k).push(t);
+      }
+      for (const g of m.values()) {
+        const n = g.length;
+        for (const t of g) {
+          t.coopPartnerCount = n;
+        }
+      }
+    }
+
+    function groupTasksByCoopKey(tasks) {
+      const m = new Map();
+      for (const t of tasks) {
+        const k = `${t.dishIdx}|${t.stepIdx}`;
+        if (!m.has(k)) m.set(k, []);
+        m.get(k).push(t);
+      }
+      return m;
+    }
+
+    /** 单人「掷骰前」有效成功率（合作组内会再取平均） */
+    function computeSingleTaskFinalRate(t, shouldSabotage, ignoreForceFail) {
+      let finalRate = t.baseRateRaw;
+      if (!ignoreForceFail && t.forceFailPreview) finalRate = 0;
+      if (t._forcedZeroBySpySabotage) finalRate = 0;
+      if (t.isMain && shouldSabotage) finalRate = 0;
+      if (game.dizzyCarbon && !game.isSpy && t.isMain) finalRate = 0;
+      if (game.flowState && game.isSpy && t.isMain) finalRate = 100;
+      return Math.min(100, Math.max(0, finalRate));
+    }
+
+    function applyRandomEvent(tasks) {
+      let preSummaryAlert = null;
+      const totalWeight = EVENTS.reduce((s, e) => s + e.weight, 0);
+      let rand = Math.random() * totalWeight;
+      let accum = 0;
+      let chosen = EVENTS[0];
+      for (const e of EVENTS) {
+        accum += e.weight;
+        if (rand <= accum) {
+          chosen = e;
+          break;
+        }
+      }
+      let msg = `✨ 事件：${chosen.name} ✨ ${chosen.desc}`;
+      if (chosen.type === "all_fail_redo") {
+        for (const t of tasks) {
+          t.success = false;
+          game.dishNeedRedo[t.dishIdx] = true;
+        }
+        msg += " → 全部失败，需要重做！";
+      } else if (chosen.type === "single_next_success" && tasks.length > 0) {
+        const randTask = tasks[Math.floor(Math.random() * tasks.length)];
+        game.guaranteedNext = { member: randTask.member, dishIdx: randTask.dishIdx, stepIdx: randTask.stepIdx };
+        msg += ` → ${memberWithEmoji(randTask.member)} 下轮必成功！`;
+      } else if (chosen.type === "skip_next") {
+        const candidates = MEMBERS.filter((m) => m !== game.mainChar);
+        if (candidates.length) {
+          game.skipMemberNext = candidates[Math.floor(Math.random() * candidates.length)];
+          msg += ` → ${memberWithEmoji(game.skipMemberNext)} 下一轮无法上场。`;
+        }
+      } else if (chosen.type === "fast_forward") {
+        if (!game.isSpy) {
+          const active = pickDishIdxForEvent(true);
+          if (active >= 0) {
+            game.ffNextRoundDishIdx = active;
+            msg += ` → 神来之手：下一轮 ${dishPlainWithEmojiByName(DISHES[active])} 若成功推进将连进两步！`;
+          } else msg += " → 勇士连进两步（暂无可选中的未完成菜）。";
+        } else {
+          const active = pickDishIdxForEvent(false);
+          if (active >= 0) {
+            game.rewindNextRoundDishIdx = active;
+            msg += ` → 密探捣乱：下一轮 ${dishPlainWithEmojiByName(DISHES[active])} 将先退回上一步再分工！`;
+          } else msg += " → 密探倒退（暂无可倒退的菜）。";
+        }
+      } else if (chosen.type === "hint") {
+        if (game.isSpy && game.sabotageLeft < 3) {
+          game.sabotageLeft++;
+          msg += " → 密探获得一次额外搞砸机会！";
+        } else if (!game.isSpy) {
+          game.warriorSpySabotageLeft++;
+          const hint = buildInsightHintSentence(tasks);
+          msg += ` → ${hint}`;
+          preSummaryAlert = { message: hint, title: "情报" };
+        }
+      } else if (chosen.type === "insight") {
+        const hint = buildInsightHintSentence(tasks);
+        msg += ` → ${hint}`;
+        preSummaryAlert = { message: hint, title: "情报" };
+      } else if (chosen.type === "all_success") {
+        for (const t of tasks) {
+          t.success = true;
+          t.failLevel = 1;
+          t.failMsg = "";
+        }
+        msg += " → 全员灵感爆棚，本轮分工全部成功！";
+      }
+      return { msg, preSummaryAlert };
+    }
+
+    function rollRoundState(tasks, shouldSabotage) {
+      /** 上轮「神来之手」勇士效果：本轮成功推进该菜时 +2（连进两步），仅生效一次 */
+      const ffBonusDishIdx = game.ffNextRoundDishIdx;
+      game.ffNextRoundDishIdx = null;
+
+      /** 重做标记仅作用于本轮结算，跨轮不清除会导致成功后永远无法推进 */
+      game.dishNeedRedo = {};
+      if (!game.isSpy && game.round >= 3 && game.warriorSpySabotageLeft > 0) {
+        const spyTasks = tasks.filter((t) => !t.isMain && (game.spyMates || []).includes(t.member));
+        if (spyTasks.length) {
+          const helpedSpy = game.helpTarget && (game.spyMates || []).includes(game.helpTarget) ? game.helpTarget : null;
+          const available = spyTasks.filter((t) => !helpedSpy || t.member !== helpedSpy);
+          const roundsLeftIncludingThis = Math.max(1, 8 - game.round);
+          const mustUseNow = Math.max(1, game.warriorSpySabotageLeft - (roundsLeftIncludingThis - 1));
+          if (available.length) {
+            const pool = available.slice();
+            let usedNow = 0;
+            while (pool.length && usedNow < mustUseNow) {
+              const idx = Math.floor(Math.random() * pool.length);
+              const pick = pool.splice(idx, 1)[0];
+              pick._forcedZeroBySpySabotage = true;
+              usedNow++;
+            }
+            game.warriorSpySabotageLeft = Math.max(0, game.warriorSpySabotageLeft - usedNow);
+          }
+        }
+      }
+      const gNext = game.guaranteedNext;
+      if (gNext) {
+        game.guaranteedNext = null;
+        for (const t of tasks) {
+          if (t.member === gNext.member && t.dishIdx === gNext.dishIdx && t.stepIdx === gNext.stepIdx) {
+            t._guaranteedSuccess = true;
+          }
+        }
+      }
+      const byCoop = groupTasksByCoopKey(tasks);
+      for (const g of byCoop.values()) {
+        // 只有单人执行该步骤时，才会触发帮助密探的“必成功”
+        if (g.length === 1 && g.some((t) => t.forceSuccessByHelp)) {
+          for (const t of g) t._guaranteedSuccess = true;
+        }
+        if (g.some((t) => t._guaranteedSuccess)) {
+          for (const t of g) t._guaranteedSuccess = true;
+        }
+      }
+      function pickFailMsg(level, dishName, stepIdx) {
+        return pickDishFailMsg(dishName, stepIdx, level);
+      }
+      for (const g of byCoop.values()) {
+        if (g.some((t) => t._guaranteedSuccess)) {
+          for (const t of g) {
+            t.finalRate = 100;
+            t.success = true;
+            t.failLevel = 1;
+            t.failMsg = "";
+          }
+          continue;
+        }
+        const ignoreForceFail = g.length > 1;
+        const rates = g.map((t) => computeSingleTaskFinalRate(t, shouldSabotage, ignoreForceFail));
+        let avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+        // 多人合作时，不走必成/必败，只通过组平均成功率加减来体现影响
+        if (g.length > 1 && g.some((t) => t.coopRateBonusFromSpyHelp)) avgRate += 10;
+        if (g.length > 1 && g.some((t) => t.coopRatePenaltyFromSpyFrame)) avgRate -= 25;
+        avgRate = Math.min(100, Math.max(0, avgRate));
+        const dice = Math.random() * 100;
+        const success = dice < avgRate;
+        let level = 1;
+        if (!success) {
+          const r = Math.random();
+          if (r < 0.4) level = 1;
+          else if (r < 0.7) level = 2;
+          else level = 3;
+          if (game.isSpy && Math.random() < 0.4) level = 3;
+        }
+        const failMsg = success ? "" : pickFailMsg(level, g[0].dishName, g[0].stepIdx);
+        const roundedAvg = Math.round(avgRate * 10) / 10;
+        for (let i = 0; i < g.length; i++) {
+          const t = g[i];
+          t.finalRate = g.length > 1 ? roundedAvg : Math.min(100, Math.max(0, rates[i]));
+          t.success = success;
+          t.failLevel = level;
+          t.failMsg = failMsg;
+        }
+      }
+      const eventPack = applyRandomEvent(tasks);
+      const eventLog = eventPack.msg;
+      const preSummaryAlert = eventPack.preSummaryAlert;
+      for (const t of tasks) {
+        if (!t.success) {
+          game.dishNeedRedo[t.dishIdx] = true;
+          if (t.failLevel === 3 && Math.random() < 0.2) {
+            game.dishesProgress[t.dishIdx] = 0;
+            delete game.dishNeedRedo[t.dishIdx];
+            game.dishRunEpoch[t.dishIdx] = (game.dishRunEpoch[t.dishIdx] || 0) + 1;
+          }
+        }
+      }
+      const advancedCoopSlots = new Set();
+      for (const t of tasks) {
+        if (t.success && !game.dishNeedRedo[t.dishIdx]) {
+          const cur = game.dishesProgress[t.dishIdx];
+          if (t.stepIdx === cur) {
+            const slotKey = `${t.dishIdx}|${t.stepIdx}`;
+            if (!advancedCoopSlots.has(slotKey)) {
+              let delta = 1;
+              if (ffBonusDishIdx === t.dishIdx) delta = 2;
+              game.dishesProgress[t.dishIdx] = Math.min(4, cur + delta);
+              advancedCoopSlots.add(slotKey);
+            }
+          }
+        }
+      }
+      for (let i = 0; i < DISHES.length; i++) {
+        if (game.dishesProgress[i] >= 4 && !game.dishCompletionOrder.includes(i)) {
+          game.dishCompletionOrder.push(i);
+        }
+      }
+      return { eventLog, preSummaryAlert };
+    }
+
+    /** 同一菜同一环节同一结果的多人合作，合并为一行展示 */
+    function groupRoundResultsForDisplay(results) {
+      const byKey = new Map();
+      const order = [];
+      for (const res of results) {
+        const k = `${res.dishIdx}|${res.stepIdx}`;
+        if (!byKey.has(k)) {
+          byKey.set(k, []);
+          order.push(k);
+        }
+        byKey.get(k).push(res);
+      }
+      const out = [];
+      for (const k of order) {
+        const g = byKey.get(k);
+        const first = g[0];
+        if (g.length > 1) {
+          out.push({
+            merged: true,
+            dishIdx: first.dishIdx,
+            stepIdx: first.stepIdx,
+            dishName: first.dishName,
+            stepName: CUSTOM_STEPS[first.dishName][first.stepIdx],
+            members: g.map((t) => t.member),
+            success: !!first.success,
+            failMsg: first.failMsg || ""
+          });
+        } else {
+          out.push({ merged: false, res: first });
+        }
+      }
+      return out;
+    }
+
+    function getAllSpyNamesForRecap() {
+      if (game.isSpy) {
+        return [game.mainChar, game.spyMate].filter((x, i, a) => x && a.indexOf(x) === i);
+      }
+      return (game.spyMates && game.spyMates.length ? [...game.spyMates] : [game.spyMate]).filter(Boolean);
+    }
+
+    function maxEpochByDishFromHistory() {
+      const m = {};
+      for (const r of game.stepHistory || []) {
+        const e = r.epoch ?? 0;
+        m[r.dishIdx] = Math.max(m[r.dishIdx] || 0, e);
+      }
+      return m;
+    }
+
+    /** 同一菜同一环节在当前段内，若之后又有成功，则早先的失败不算「最终」失利 */
+    function isTerminalFailureRow(r, hist) {
+      const ep = r.epoch ?? 0;
+      return !hist.some(
+        (h) =>
+          h.dishIdx === r.dishIdx &&
+          h.stepIdx === r.stepIdx &&
+          (h.epoch ?? 0) === ep &&
+          h.round > r.round &&
+          h.success
+      );
+    }
+
+
+
+    /** 写入与结算弹窗「结果区」相同的行（groupRoundResultsForDisplay 顺序与合并规则） */
+    function appendSettlementRecapFromTasks(tasks, settledRound, epochSnap) {
+      if (!game.settlementRecapLog) game.settlementRecapLog = [];
+      let orderInRound = 0;
+      for (const item of groupRoundResultsForDisplay(tasks)) {
+        if (item.merged) {
+          game.settlementRecapLog.push({
+            round: settledRound,
+            orderInRound: orderInRound++,
+            epoch: epochSnap[item.dishIdx] ?? 0,
+            dishIdx: item.dishIdx,
+            stepIdx: item.stepIdx,
+            dishName: item.dishName,
+            stepName: item.stepName,
+            members: item.members.slice(),
+            member: null,
+            success: !!item.success,
+            failMsg: item.failMsg || ""
+          });
+        } else {
+          const r = item.res;
+          game.settlementRecapLog.push({
+            round: settledRound,
+            orderInRound: orderInRound++,
+            epoch: epochSnap[r.dishIdx] ?? 0,
+            dishIdx: r.dishIdx,
+            stepIdx: r.stepIdx,
+            dishName: r.dishName,
+            stepName: CUSTOM_STEPS[r.dishName][r.stepIdx],
+            members: null,
+            member: r.member,
+            success: !!r.success,
+            failMsg: r.success ? "" : r.failMsg || ""
+          });
+        }
+      }
+    }
+
+    /** 轮次结算弹窗已占用顶层 modal，再 showModal 提示框会被挡住；在行间展开失败原因。
+     * 每轮结算弹窗内仅允许查看一条失败原因：首次点选后，其余「查看原因」按钮禁用。 */
+    function appendRoundSummaryFailReason(row, failMsg, failReasonCtx) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "fail-reason-btn";
+      btn.textContent = "查看原因";
+      let box = null;
+      btn.addEventListener("click", () => {
+        if (failReasonCtx.locked && failReasonCtx.chosenBtn !== btn) return;
+        if (!box) {
+          box = document.createElement("div");
+          box.className = "fail-reason-box";
+          box.setAttribute("role", "status");
+          row.appendChild(box);
+        }
+        box.textContent = "失败原因：" + (failMsg == null ? "" : String(failMsg));
+        if (!failReasonCtx.locked) {
+          failReasonCtx.locked = true;
+          failReasonCtx.chosenBtn = btn;
+          failReasonCtx.container.querySelectorAll(".fail-reason-btn").forEach((b) => {
+            if (b !== btn) b.disabled = true;
+          });
+        }
+      });
+      row.appendChild(document.createTextNode(" "));
+      row.appendChild(btn);
+    }
+
+    function openRoundSummaryModal(results, eventMsg, settledRound, modeImpactNote) {
+      const dlg = document.getElementById("dlgRound");
+      document.getElementById("dlgRoundTitle").textContent = `第${settledRound}轮 结算`;
+      document.getElementById("dlgRoundEvent").textContent = eventMsg;
+      const body = document.getElementById("dlgRoundBody");
+      body.innerHTML = "";
+      if (modeImpactNote) {
+        const note = document.createElement("div");
+        note.className = "result-row";
+        note.style.color = "#1a3b57";
+        note.textContent = `备注：${modeImpactNote}`;
+        body.appendChild(note);
+      }
+
+      const failReasonCtx = { container: body, locked: false, chosenBtn: null };
+
+      for (const item of groupRoundResultsForDisplay(results)) {
+        const row = document.createElement("div");
+        row.className = "result-row";
+        if (item.merged) {
+          const outcome = item.success ? "成功" : "失败";
+          const cls = item.success ? "success" : "fail";
+          const displayMembers = item.members
+            .map((m) =>
+              escapeHtml(m === game.mainChar ? `${memberWithEmoji(m)}（主厨）` : memberWithEmoji(m))
+            )
+            .join("、");
+          row.innerHTML = `${dishWithEmojiByName(item.dishName)}-${escapeHtml(item.stepName)}-${displayMembers}-<span class="${cls}">${outcome}</span>`;
+          if (!item.success) {
+            appendRoundSummaryFailReason(row, item.failMsg, failReasonCtx);
+          }
+        } else {
+          const r = item.res;
+          const stepName = CUSTOM_STEPS[r.dishName][r.stepIdx];
+          const outcome = r.success ? "成功" : "失败";
+          const cls = r.success ? "success" : "fail";
+          const displayMember = escapeHtml(
+            r.member === game.mainChar ? `${memberWithEmoji(r.member)}（主厨）` : memberWithEmoji(r.member)
+          );
+          row.innerHTML = `${dishWithEmojiByName(r.dishName)}-${escapeHtml(stepName)}-${displayMember}-<span class="${cls}">${outcome}</span>`;
+          if (!r.success) {
+            appendRoundSummaryFailReason(row, r.failMsg, failReasonCtx);
+          }
+        }
+        body.appendChild(row);
+      }
+
+      let finished = false;
+      const finishRoundModal = () => {
+        if (finished) return;
+        finished = true;
+        dlg.removeEventListener("close", finishRoundModal);
+        game.roundEndLock = false;
+        game.intendSabotage = false;
+        const allDone = game.dishesProgress.every((p) => p >= 4);
+        if (allDone || game.round > 7) endGame();
+        else renderUI();
+      };
+
+      const close = document.getElementById("dlgRoundClose");
+      close.onclick = null;
+      close.onclick = () => {
+        dlg.close();
+      };
+
+      dlg.addEventListener("close", finishRoundModal, { once: true });
+
+      if (typeof dlg.showModal === "function") {
+        dlg.showModal();
+      } else {
+        dlg.removeEventListener("close", finishRoundModal);
+        finished = true;
+        showAlertDialog(
+          `（浏览器不支持 dialog.showModal）\n\n${eventMsg}\n\n请换用 Chrome / Edge 最新版打开本页。`,
+          "无法打开结算窗口"
+        );
+        game.roundEndLock = false;
+        game.intendSabotage = false;
+        const allDone = game.dishesProgress.every((p) => p >= 4);
+        if (allDone || game.round > 7) endGame();
+        else renderUI();
+      }
+    }
+
+    function executeRoundAndResolve() {
+      if (game.roundEndLock || game.gameOver) return;
+      if (game.round > 7) {
+        endGame();
+        return;
+      }
+      if (game.rewindNextRoundDishIdx != null) {
+        const ri = game.rewindNextRoundDishIdx;
+        game.rewindNextRoundDishIdx = null;
+        if (ri >= 0 && ri < DISHES.length) {
+          game.dishesProgress[ri] = Math.max(0, game.dishesProgress[ri] - 1);
+        }
+      }
+      const dishIdx = game.selectedDishIdx;
+      const currentStep = game.dishesProgress[dishIdx];
+      if (currentStep >= 4) {
+        showAlertDialog("这道菜已完成，请点击选择另一道未完成的菜。");
+        return;
+      }
+      const shouldSabotage = !!game.isSpy && !!game.intendSabotage;
+      if (shouldSabotage) {
+        if (game.sabotageLeft <= 0) {
+          showAlertDialog("搞砸次数已用完！");
+          return;
+        }
+        game.sabotageLeft--;
+        game.spySabotageRounds = (game.spySabotageRounds || 0) + 1;
+        if (currentStep === 3) {
+          if (!game.platterSabotageDishIndices) game.platterSabotageDishIndices = [];
+          if (!game.platterSabotageDishIndices.includes(dishIdx)) game.platterSabotageDishIndices.push(dishIdx);
+        }
+      }
+
+      game.roundEndLock = true;
+      const settledRound = game.round;
+      const epochSnap = game.dishRunEpoch.slice();
+      const previewKey = `${dishIdx}|${currentStep}|${settledRound}`;
+      const modeImpactNote = game.modeImpactNoteNextSettle || "";
+
+      try {
+        const pendingSkipMember = game.skipMemberNext;
+        let tasks;
+        if (
+          game.previewSnapshotKey === previewKey &&
+          Array.isArray(game.previewSnapshotTasks) &&
+          game.previewSnapshotTasks.length
+        ) {
+          tasks = game.previewSnapshotTasks.map((t) => ({ ...t }));
+          applyAssistModifiersToTasks(tasks);
+          annotateCooperativeGroups(tasks);
+        } else {
+          tasks = generatePreviewTasks(dishIdx, game.mainChar);
+        }
+        if (pendingSkipMember) game.skipMemberNext = null; // 仅作用一轮；rollRoundState 内事件可再设
+        const roundPack = rollRoundState(tasks, shouldSabotage);
+        const eventLog = roundPack.eventLog;
+        const preSummaryAlert = roundPack.preSummaryAlert;
+
+        appendSettlementRecapFromTasks(tasks, settledRound, epochSnap);
+        const mainTask = tasks.find((t) => t.isMain);
+        if (!game.mainRoundJournal) game.mainRoundJournal = [];
+        if (mainTask) {
+          game.mainRoundJournal.push({
+            round: settledRound,
+            dishName: mainTask.dishName,
+            stepName: CUSTOM_STEPS[mainTask.dishName][mainTask.stepIdx],
+            assistType: game.isSpy ? "甩锅" : "帮助",
+            assistTarget: game.isSpy ? game.frameTarget : game.helpTarget,
+            mainSuccess: !!mainTask.success,
+            failMsg: mainTask.failMsg || ""
+          });
+        }
+
+        for (const t of tasks) {
+          game.stepHistory.push({
+            round: settledRound,
+            dishIdx: t.dishIdx,
+            dishName: t.dishName,
+            stepIdx: t.stepIdx,
+            stepName: CUSTOM_STEPS[t.dishName][t.stepIdx],
+            member: t.member,
+            success: !!t.success,
+            failMsg: t.success ? "" : t.failMsg || "",
+            epoch: epochSnap[t.dishIdx]
+          });
+        }
+
+        game.helpTarget = null;
+        game.frameTarget = null;
+        game.round++;
+        game.previewSnapshotKey = "";
+        game.previewSnapshotTasks = null;
+
+        game.dizzyCarbon = !game.isSpy && Math.random() < 0.08;
+        game.flowState = game.isSpy && Math.random() < 0.08;
+        if (game.dizzyCarbon) game.everDizzyCarbon = true;
+        if (game.flowState) game.everFlowState = true;
+        game.modeImpactNoteNextSettle = game.dizzyCarbon
+          ? "主厨，在本回合中晕碳，昏昏欲睡，遗憾失败"
+          : game.flowState
+            ? "主厨，在回合中进入了心流模式，信手拈来，不小心把这道菜做成了"
+            : "";
+
+        const openSummary = () => {
+          openRoundSummaryModal(tasks, eventLog, settledRound, modeImpactNote);
+        };
+        if (preSummaryAlert) {
+          const dlgMsg = document.getElementById("dlgMsg");
+          dlgMsg.addEventListener(
+            "close",
+            () => {
+              openSummary();
+            },
+            { once: true }
+          );
+          showAlertDialog(preSummaryAlert.message, preSummaryAlert.title);
+        } else {
+          openSummary();
+        }
+      } catch (e) {
+        console.error(e);
+        showAlertDialog("结算出错：" + (e && e.message ? e.message : e), "结算出错");
+        game.roundEndLock = false;
+      }
+    }
+
+    function endGame() {
+      const successDishes = game.dishesProgress.filter((p) => p >= 4).length;
+      if (game.isSpy) {
+        openSpyMateGuessDialog(successDishes);
+      } else {
+        game.preAccusationDishCount = successDishes;
+        openAccusationDialog(successDishes);
+      }
+    }
+
+    function openSpyMateGuessDialog(successDishes) {
+      const dlg = document.getElementById("dlgSpyMate");
+      document.getElementById("dlgSpyMateHint").textContent =
+        `完成菜品：${successDishes}/7。请选择你认为的密探队友（猜错则勇士方会多完成1道菜，最多按 7 道计）。`;
+      const list = document.getElementById("dlgSpyMateList");
+      list.innerHTML = "";
+      const others = MEMBERS.filter((m) => m !== game.mainChar);
+      for (const m of others) {
+        const lab = document.createElement("label");
+        lab.innerHTML = `<input type="radio" name="spyMatePick" value="${m}" /> ${escapeHtml(memberWithEmoji(m))}`;
+        list.appendChild(lab);
+      }
+      const blockSpyMateEscape = (e) => e.preventDefault();
+      const submit = document.getElementById("dlgSpyMateSubmit");
+      submit.onclick = null;
+      submit.onclick = () => {
+        const picked = document.querySelector("#dlgSpyMateList input[name='spyMatePick']:checked");
+        if (!picked) {
+          showAlertDialog("请先选择 1 名队友。");
+          return;
+        }
+        dlg.removeEventListener("cancel", blockSpyMateEscape);
+        const guess = picked.value;
+        const guessedRight = guess === game.spyMate;
+        const adjustedDishes = guessedRight ? successDishes : Math.min(7, successDishes + 1);
+        const spyWin = adjustedDishes < 5;
+        const outcome = spyWin ? "密探胜利！" : "勇士胜利！";
+        const guessLine = guessedRight
+          ? `你成功找出密探队友：${memberWithEmoji(game.spyMate)}。`
+          : `你未找出密探队友（真实队友：${memberWithEmoji(game.spyMate)}），完成菜品 +1。`;
+        game.endSummary = {
+          winnerTitle: outcome,
+          finalDishCount: adjustedDishes,
+          subNote: guessLine,
+          wasSpyPlayer: true,
+          guessedSpyMateRight: guessedRight,
+          spyNames: [game.mainChar, game.spyMate].filter((x, i, a) => x && a.indexOf(x) === i)
+        };
+        dlg.close();
+        game.gameOver = true;
+        renderGameOver();
+      };
+      dlg.addEventListener("cancel", blockSpyMateEscape);
+      if (typeof dlg.showModal === "function") dlg.showModal();
+      else dlg.setAttribute("open", "open");
+    }
+
+    function openAccusationDialog(successDishes) {
+      const dlg = document.getElementById("dlgAccuse");
+      document.getElementById("dlgAccuseHint").textContent =
+        `完成菜品：${successDishes}/7。队友中有两名密探，勾选你认为的密探（每命中一名真密探，完成数 +1，合计最多按 7 道菜计）。`;
+      const list = document.getElementById("dlgAccuseList");
+      list.innerHTML = "";
+      const others = MEMBERS.filter((m) => m !== game.mainChar);
+      for (const m of others) {
+        const lab = document.createElement("label");
+        lab.innerHTML = `<input type="checkbox" value="${m}" /> ${escapeHtml(memberWithEmoji(m))}`;
+        list.appendChild(lab);
+      }
+      const blockAccuseEscape = (e) => e.preventDefault();
+      const submit = document.getElementById("dlgAccuseSubmit");
+      submit.onclick = null;
+      submit.onclick = () => {
+        dlg.removeEventListener("cancel", blockAccuseEscape);
+        const selected = Array.from(document.querySelectorAll("#dlgAccuseList input:checked")).map((cb) => cb.value);
+        let finalDishes = successDishes;
+        const spies = game.spyMates && game.spyMates.length ? game.spyMates : [game.spyMate];
+        const hits = selected.filter((m) => spies.includes(m)).length;
+        finalDishes = Math.min(7, finalDishes + hits);
+        const win = finalDishes >= 6 ? "勇士胜利！" : "密探胜利！";
+        game.endSummary = {
+          winnerTitle: win,
+          finalDishCount: finalDishes,
+          subNote: "",
+          wasSpyPlayer: false,
+          spyNames: spies.slice()
+        };
+        dlg.close();
+        game.gameOver = true;
+        renderGameOver();
+      };
+      if (typeof dlg.showModal === "function") {
+        dlg.addEventListener("cancel", blockAccuseEscape);
+        dlg.showModal();
+      } else {
+        const pick = prompt(
+          `请输入你怀疑的密探代号，多名请用逗号或顿号分隔：\n${others.map((m) => memberWithEmoji(m)).join("、")}`
+        );
+        let finalDishes = successDishes;
+        const spies = game.spyMates && game.spyMates.length ? game.spyMates : [game.spyMate];
+        const picks = pick ? pick.split(/[,，、\s]+/).map((s) => s.trim()).filter((s) => s && others.includes(s)) : [];
+        const hits = new Set(picks.filter((m) => spies.includes(m))).size;
+        finalDishes = Math.min(7, finalDishes + hits);
+        const win = finalDishes >= 6 ? "勇士胜利！" : "密探胜利！";
+        game.endSummary = {
+          winnerTitle: win,
+          finalDishCount: finalDishes,
+          subNote: "",
+          wasSpyPlayer: false,
+          spyNames: spies.slice()
+        };
+        game.gameOver = true;
+        renderGameOver();
+      }
+    }
+
+    function buildStepRecapHtml() {
+      const log = game.settlementRecapLog || [];
+      let html = `<div style="text-align:left;max-width:1100px;margin:20px auto 0;padding:14px 10px 10px;background:rgba(187,225,248,0.2);border-radius:24px 8px 24px 8px;border:1px solid rgba(153,219,255,0.55);">`;
+      html += `<h3 style="margin:0 0 6px;text-align:center;">各菜逐轮回顾</h3>`;
+     
+      html += `<div class="dish-settle-grid">`;
+      for (let d = 0; d < DISHES.length; d++) {
+        const rowsAll = log.filter((r) => r.dishIdx === d).sort((a, b) => a.round - b.round || (a.orderInRound ?? 0) - (b.orderInRound ?? 0));
+        const multiEp = new Set(rowsAll.map((x) => x.epoch ?? 0)).size > 1;
+        html += `<div class="dish-settle-card">`;
+        html += `<div class="settle-emoji">${DISH_EMOJI[d]}</div>`;
+        html += `<div class="settle-name">${dishWithEmojiByIndex(d)}</div>`;
+        if (!rowsAll.length) {
+          html += `<div class="settle-line" style="color:#b6dff7;">本局无该菜记录</div>`;
+        } else {
+          let prevEp = null;
+          for (const r of rowsAll) {
+            const ep = r.epoch ?? 0;
+            if (multiEp && prevEp !== null && ep !== prevEp) {
+              html += `<div class="settle-line" style="color:#204d75;font-size:0.72rem;text-align:center;">—— 本菜重开后的记录 ——</div>`;
+            }
+            prevEp = ep;
+            const seg = multiEp ? `段${ep + 1} · ` : "";
+            const tag = r.success ? "成功" : "失败";
+            const cls = r.success ? "success" : "fail";
+            const who =
+              r.members && r.members.length
+                ? r.members.map((m) => escapeHtml(memberWithEmoji(m))).join("、")
+                : escapeHtml(memberWithEmoji(r.member || ""));
+            html += `<div class="settle-line">${seg}第${r.round}轮 · ${dishEmojiByIndex(d)}-${escapeHtml(r.stepName)}-${who}-<span class="${cls}">${escapeHtml(tag)}</span></div>`;
+          }
+        }
+        html += `</div>`;
+      }
+      html += `</div></div>`;
+      return html;
+    }
+
+    /** 终局主厨表现称号（勇士/密探主线 + 可选中立标签） */
+    function computeMainControlPerformanceRating() {
+      const log = game.mainRoundJournal || [];
+      const es = game.endSummary;
+      if (!log.length) {
+        return { title: "待定主厨", blurb: "暂无主厨回合记录，本局评价从简", neutrals: [] };
+      }
+      const successes = log.filter((r) => r.mainSuccess).length;
+      const fails = log.filter((r) => !r.mainSuccess).length;
+      const n = log.length;
+      const allRoundsSuccess = n > 0 && fails === 0;
+      const uniqueDishes = new Set(log.map((r) => r.dishName)).size;
+      const assistUses = log.filter((r) => r.assistTarget).length;
+
+      const warriorWin = es && es.winnerTitle && es.winnerTitle.indexOf("勇士") >= 0;
+      const spyWin = es && es.winnerTitle && es.winnerTitle.indexOf("密探") >= 0;
+      const finalD = es ? es.finalDishCount : 0;
+      const preAcc = game.preAccusationDishCount;
+      const wasSpy = es && es.wasSpyPlayer;
+      const guessedRight = es && es.guessedSpyMateRight === true;
+      const sabotages = game.spySabotageRounds || 0;
+      const platterIdx = game.platterSabotageDishIndices || [];
+      const platterKill =
+        wasSpy &&
+        spyWin &&
+        platterIdx.some((idx) => (game.dishesProgress[idx] || 0) < 4);
+
+      let title = "";
+      let blurb = "";
+      const neutrals = [];
+
+      if (wasSpy) {
+        if (platterKill) {
+          title = "一锤定音";
+          blurb = "关键时刻绝杀，太会挑时机";
+        } else if (spyWin && sabotages === 0) {
+          title = "欢乐卧底";
+          blurb = "啥也没干成就赢了，这大概就是天命";
+        } else if (spyWin && guessedRight && fails <= 3) {
+          title = "糖果间谍";
+          blurb = "操作稀碎，但眼光毒辣，这就是高手";
+        } else if (spyWin && successes < 3) {
+          title = "奥斯卡级潜伏";
+          blurb = "实则精准控分，演技满分";
+        } else if (spyWin && fails >= 5) {
+          title = "综艺密探";
+          blurb = "每一轮都是节目效果，镜头都舍不得切走";
+        } else if (spyWin && fails <= 2) {
+          title = "节奏大师";
+          blurb = "不显山露水，但每一刀都砍在大动脉上";
+        } else if (spyWin) {
+          title = "暗线主理人";
+          blurb = "赢得不轻松，但终点线还是被你踩到了";
+        } else {
+          title = "台前主厨";
+          blurb = "剧本没站你这边，但戏你是演全了";
+        }
+      } else {
+        const comeback =
+          typeof preAcc === "number" && preAcc < 6 && finalD >= 6 && warriorWin;
+        if (warriorWin && allRoundsSuccess) {
+          title = "不败食神";
+          blurb = "0失误，教科书级别的大厨";
+        } else if (comeback) {
+          title = "逆袭之星";
+          blurb = "前期翻车但后期暴走，剧本都不敢这么写";
+        } else if (warriorWin && successes >= 5) {
+          title = "定海神针";
+          blurb = "稳定可靠，队友心中的定心丸";
+        } else if (!warriorWin && successes >= 5) {
+          title = "拼命主厨";
+          blurb = "一个人扛下了所有，世界对不起你";
+        } else if (warriorWin && fails >= 5) {
+          title = "综艺之王";
+          blurb = "夺冠路上你负责气氛组，名场面管够";
+        } else if (warriorWin && successes <= 2) {
+          title = "天选掌勺";
+          blurb = "个人成功不多，但勇士侧照样夺冠，团魂大于手感";
+        } else if (warriorWin) {
+          title = "家常主理人";
+          blurb = "顺风不浪，火候刚好，称职的一餐";
+        } else if (fails >= 5) {
+          title = "综艺之王";
+          blurb = "每一轮都是名场面，节目组爱死你了";
+        } else if (!warriorWin) {
+          title = "逆风主厨";
+          blurb = "风向不对，但你还在认真挥铲";
+        } else {
+          title = "家常主理人";
+          blurb = "顺风不浪，火候刚好，称职的一餐";
+        }
+      }
+
+      if (n >= 7 && uniqueDishes >= 5) {
+        neutrals.push({ tag: "百味探索家", line: "每一道都是新体验，厨房里的探险家" });
+      }
+      if (game.everDizzyCarbon || game.everFlowState) {
+        neutrals.push({ tag: "名场面制造机", line: "天赋异禀，要么超神要么超鬼，但永远好看" });
+      }
+      if (assistUses <= 2) {
+        neutrals.push({ tag: "专注厨神", line: "佛系厨神，一切都刚刚好" });
+      }
+
+      return { title, blurb, neutrals };
+    }
+
+    function buildMainControlDiaryHtml() {
+      const log = (game.mainRoundJournal || []).slice().sort((a, b) => a.round - b.round);
+      const narrator = escapeHtml(memberWithEmoji(game.mainChar || "主厨"));
+      const perf = computeMainControlPerformanceRating();
+      const candidates = [{ title: perf.title, blurb: perf.blurb }];
+      for (const x of perf.neutrals || []) {
+        candidates.push({ title: x.tag, blurb: x.line });
+      }
+      const picked =
+        candidates.length > 1
+          ? candidates[Math.floor(Math.random() * candidates.length)]
+          : candidates[0];
+
+      let html = `<div style="text-align:left;max-width:920px;margin:16px auto 0;padding:14px 18px;background:rgba(187,225,248,0.2);border-radius:20px 8px 20px 8px;border:1px solid rgba(153,219,255,0.55);">`;
+      html += `<h3 style="margin:0 0 12px;text-align:center;">主厨本局日记</h3>`;
+      html += `<div style="margin:0 0 14px;text-align:center;line-height:1.6;">`;
+      html += `<div style="font-size:1.28rem;color:#1a4a6e;font-weight:700;">「${escapeHtml(picked.title)}」</div>`;
+      html += `<div style="font-size:1.08rem;color:#2d5f8a;margin-top:6px;">${escapeHtml(picked.blurb)}</div>`;
+      html += `</div>`;
+
+      if (!log.length) {
+        html += `<div class="settle-line" style="color:#b6dff7;text-align:center;">本局暂无主厨回顾记录</div>`;
+      } else {
+        html += `<ul style="margin:0;padding-left:20px;line-height:1.7;">`;
+        for (const r of log) {
+          const assistWord = r.assistType || "帮助";
+          const assistTargetEscaped = r.assistTarget ? escapeHtml(memberWithEmoji(r.assistTarget)) : "";
+          const outcome = r.mainSuccess ? "成功" : "失败";
+          const outcomeCls = r.mainSuccess ? "success" : "fail";
+          const dish = dishWithEmojiByName(r.dishName);
+          const step = escapeHtml(r.stepName);
+          const tmplIdx = ((Number(r.round) || 1) - 1) % 7;
+          const vi = tmplIdx % 7;
+          const isSpy = assistWord === "甩锅";
+          const assistVerbsSpy = [
+            "把锅甩给了",
+            "悄悄甩锅给",
+            "战术性甩锅给",
+            "挖坑甩给",
+            "稳稳将锅扣在",
+            "偷偷搞破坏给",
+            "反手把锅送给"
+          ];
+          const assistVerbsHelp = [
+            "友情帮助了",
+            "场外拉了一把",
+            "顺手支援了",
+            "默契配合了一下",
+            "递了助攻给",
+            "仗义出手帮了",
+            "友情连线了"
+          ];
+          let assistSeg;
+          if (assistTargetEscaped) {
+            const assistVerbs = isSpy ? assistVerbsSpy : assistVerbsHelp;
+            assistSeg = `${assistVerbs[vi]}【${assistTargetEscaped}】`;
+          } else {
+            const noTargetHelp = [
+              "本轮没有把场外协助瞄准任何一名队友",
+              "也没有顺手把谁拉进这条时间线里打配合",
+              "未将协助对象指向具体某位成员",
+              "没有把友情助攻的镜头切给其他人",
+              "没有临时点名的救场对象",
+              "也没有与谁绑定成同期互助剧情",
+              "没有额外把任何队友卷进这一手操作里"
+            ];
+            const noTargetSpy = [
+              "本轮没有把甩锅对象锁定到任何人头上",
+              "也没有对谁发动一连串甩锅连招",
+              "甩锅雷达上没有出现新的背锅名字",
+              "没有给任何队友加一段接锅戏",
+              "场边没有新鲜上榜的背锅候选人",
+              "同期也没有陷害链条指向谁",
+              "没有牵连任何成员来扛这一口锅"
+            ];
+            assistSeg = (isSpy ? noTargetSpy : noTargetHelp)[vi];
+          }
+          const failRaw = String(r.failMsg || "").trim();
+          const failEscaped = failRaw ? escapeHtml(failRaw) : "";
+          let failTail = "";
+          if (!r.mainSuccess && failEscaped) {
+            const failBits = [
+              `，原因是：${failEscaped}`,
+              `，不幸${failEscaped}`,
+              `；翻车理由：${failEscaped}`,
+              `——慢镜头回放，原来是：${failEscaped}`,
+              `，问题出在：${failEscaped}`,
+              `，现场字幕吐槽：「${failEscaped}」`,
+              `，节目组补刀：${failEscaped}`
+            ];
+            failTail = failBits[tmplIdx % failBits.length];
+          }
+          const span = `<span class="${outcomeCls}">${outcome}</span>`;
+          const lines = [
+            `第${r.round}轮，${narrator}在【${dish}】做【${step}】时，${assistSeg}。最终，${narrator}的这段操作被判定为 ${span}${failTail}。`,
+            `时间线来到第${r.round}轮：${narrator}主攻【${dish}】的【${step}】环节，同时${assistSeg}。收工铃响，这段表演盖章为 ${span}${failTail}。`,
+            `第${r.round}轮厨房直拍：【${dish}】·【${step}】由${narrator}掌勺；本轮${assistSeg}。评判结果：${span}${failTail}。`,
+            `第${r.round}轮花絮：${narrator}在【${dish}】折腾【${step}】，并${assistSeg}。字幕打出——${span}${failTail}。`,
+            `第${r.round}轮，镜头对准${narrator}——于【${dish}】推进【${step}】；场边${assistSeg}。导演组判定：${span}${failTail}。`,
+            `第${r.round}轮小结：${narrator}在【${dish}】的【${step}】上火力全开，同期${assistSeg}。本轮成绩单：${span}${failTail}。`,
+            `第${r.round}轮，${narrator}把【${dish}】的【${step}】往前推了一把，且${assistSeg}。场记板合上，成绩定格在 ${span}${failTail}。`
+          ];
+          html += `<li>${lines[tmplIdx]}</li>`;
+        }
+        html += `</ul>`;
+      }
+      html += `</div>`;
+      return html;
+    }
+
+    function buildGameOverSummaryBlockHtml() {
+      const es = game.endSummary;
+      if (!es) {
+        return `<p class="game-over-line game-over-line--title">游戏结束</p>`;
+      }
+      const completed = dishDisplayOrder().filter((i) => game.dishesProgress[i] >= 4);
+      const dishPart =
+        completed.length > 0
+          ? completed.map((i) => `${dishEmojiByIndex(i)}${escapeHtml(DISHES[i])}`).join("、")
+          : "（本局无完全成菜）";
+      let spyLine = "";
+      if (es.wasSpyPlayer) {
+        const a = memberWithEmoji(game.mainChar);
+        const b = memberWithEmoji(game.spyMate);
+        spyLine = `密探身份🕵️：${escapeHtml(a)}（主厨）、${escapeHtml(b)}（队友）`;
+      } else {
+        const spies = es.spyNames && es.spyNames.length ? es.spyNames : [game.spyMate].filter(Boolean);
+        spyLine = `密探身份🕵️：${spies.map((m) => escapeHtml(memberWithEmoji(m))).join("、")}`;
+      }
+      const sub =
+        es.subNote && String(es.subNote).trim()
+          ? `<p class="game-over-line game-over-line--sub">${escapeHtml(es.subNote)}</p>`
+          : "";
+      return (
+        `<p class="game-over-line game-over-line--title">${escapeHtml(es.winnerTitle)}</p>` +
+        `<p class="game-over-line">最终完成菜品 <strong>${escapeHtml(String(es.finalDishCount))}</strong> 道：${dishPart}</p>` +
+        `<p class="game-over-line">${spyLine}</p>` +
+        sub
+      );
+    }
+
+    function renderGameOver() {
+      const container = document.getElementById("gameRoot");
+      //const spyFail = buildSpyFailureSummaryHtml();
+      const recap = buildStepRecapHtml();
+      const mainDiary = buildMainControlDiaryHtml();
+      container.innerHTML =
+        `<div class="game-container" style="text-align:center;padding:48px 20px;">` +
+        `<h1 class="ice-title">炸厨房模拟器</h1>` +
+        `<div style="max-width:920px;margin:12px auto 0;text-align:center;">${buildGameOverSummaryBlockHtml()}</div>` +
+        //(spyFail || "") +
+        (mainDiary || "") +
+        (recap || "") +
+        `<button type="button" class="btn" id="btnReload" style="margin-top:20px;">重新开局</button></div>`;
+      document.getElementById("btnReload").addEventListener("click", () => location.reload());
+    }
+
+    function renderUI() {
+      if (game.gameOver) return;
+      const container = document.getElementById("gameRoot");
+      const sel = Math.min(DISHES.length - 1, Math.max(0, game.selectedDishIdx || 0));
+      if (game.dishesProgress[sel] >= 4) {
+        const nxt = game.dishesProgress.findIndex((p) => p < 4);
+        if (nxt >= 0) game.selectedDishIdx = nxt;
+      } else game.selectedDishIdx = sel;
+
+      const selectedIdx = game.selectedDishIdx;
+      const successDishes = game.dishesProgress.filter((p) => p >= 4).length;
+      const currentStepIdx = game.dishesProgress[selectedIdx];
+      const currentStepName =
+        currentStepIdx >= 4 ? "已完成" : CUSTOM_STEPS[DISHES[selectedIdx]][currentStepIdx];
+
+      let previewTasks = [];
+      const previewKey = `${selectedIdx}|${currentStepIdx}|${game.round}`;
+      if (currentStepIdx < 4 && !game.roundEndLock) {
+        if (game.previewSnapshotKey === previewKey && game.previewSnapshotTasks) {
+          previewTasks = game.previewSnapshotTasks;
+        } else {
+          previewTasks = generatePreviewTasks(selectedIdx, game.mainChar, { applyAssistModifiers: false });
+          game.previewSnapshotKey = previewKey;
+          game.previewSnapshotTasks = previewTasks;
+        }
+      } else {
+        game.previewSnapshotKey = "";
+        game.previewSnapshotTasks = null;
+      }
+
+      const busy = game.roundEndLock;
+      if (game.isSpy && game.sabotageLeft <= 0 && game.intendSabotage) {
+        game.intendSabotage = false;
+      }
+      const assistBlock = game.isSpy
+        ? `<div><strong>甩锅环节：</strong>点选一名队友（执行前可改选）</div>` +
+          `<p class="hint-small" style="margin:6px 0 10px;">结算时降低被选队友成功率（-15%）；若甩锅给另一名密探且为单人执行该步骤，则该队友本轮按失败结算。多人合作同一步骤时仅按组平均率 -10% 体现。点选不会改变下方分工预览。</p>`
+        : `<div><strong>帮助环节：</strong>点选一名队友（执行前可改选）</div>` +
+          `<p class="hint-small" style="margin:6px 0 10px;">结算时提升被选队友成功率（+15%）；若帮助密探且为单人执行该步骤，则该队友本轮按成功结算。多人合作同一步骤时仅按组平均率 +10% 体现。点选不会改变下方分工预览；再点一次已选的人可以取消。</p>`;
+
+      const sabotageBlock =
+        `<div class="preview-area sabotage-choice">` +
+        `<div class="preview-title">搞砸本轮？</div>` +
+        `<p class="hint-small" style="margin:0 0 10px;">密探选「是」则主厨本步按搞砸结算并消耗 1 次搞砸机会；勇士固定为否。` +
+        (game.isSpy ? `（剩余 ${game.sabotageLeft}/3）` : "") +
+        `</p>` +
+        `<div style="display:flex;justify-content:center;gap:18px;flex-wrap:wrap;align-items:center;">` +
+        (game.isSpy
+          ? `<button type="button" class="btn btn-sabotage${game.intendSabotage ? " btn-choice-on" : ""}" id="sabYes" ${busy || game.sabotageLeft <= 0 ? "disabled" : ""}>是</button>` +
+            `<button type="button" class="btn btn-success${!game.intendSabotage ? " btn-choice-on" : ""}" id="sabNo" ${busy ? "disabled" : ""}>否</button>`
+          : `<span class="status-card" style="background:rgba(226,242,255,0.9);color:#183955;">搞砸本轮：<strong>否</strong>（勇士不可选）</span>`) +
+        `</div></div>`;
+
+      const html =
+        `<div class="game-container">` +
+        `<h1 class="ice-title">炸厨房模拟器</h1>` +
+        `<div class="status-bar">` +
+        `<div class="status-card">回合: ${game.round}/7</div>` +
+        `<div class="role-badge">${game.isSpy ? "密探🕵️" : "勇士🛡️"} | 主厨: ${escapeHtml(memberWithEmoji(game.mainChar))}</div>` +
+        (game.isSpy ? `<div class="sabotage-chance">搞砸剩余: ${game.sabotageLeft}/3</div>` : "") +
+        `<div class="status-card">完成菜品: ${successDishes}/7</div>` +
+        (game.dizzyCarbon ? `<div class="status-card" style="background:rgba(221,239,255,0.92);color:#1a3b57;">晕碳(勇士主厨0%成功)</div>` : "") +
+        (game.flowState ? `<div class="status-card" style="background:rgba(216,236,252,0.94);color:#1a3b57;">心流(主厨必成功)</div>` : "") +
+        (game.skipMemberNext ? `<div class="status-card">下场跳过: ${escapeHtml(memberWithEmoji(game.skipMemberNext))}</div>` : "") +
+        `</div>` +
+        `<div class="preview-area"><div class="preview-title">主厨本轮菜品：${dishWithEmojiByIndex(selectedIdx)} · ${escapeHtml(
+          currentStepName
+        )}（点击上方卡片可切换主厨负责的未完成菜品）</div></div>` +
+        `<div class="dishes-grid" id="dishesGrid"></div>` +
+        sabotageBlock +
+        `<div class="preview-area" id="previewArea"></div>` +
+        `<div class="teammates-panel">` +
+        assistBlock +
+        `<div class="teammates-grid" id="teammatesGrid" style="margin-top:10px;"></div>` +
+        `</div>` +
+        `<div class="action-buttons">` +
+        `<button type="button" class="btn btn-confirm" id="endRoundBtn" ${busy ? "disabled" : ""}>结束此回合</button>` +
+        `</div></div>`;
+
+      container.innerHTML = html;
+
+      const grid = document.getElementById("dishesGrid");
+      const order = dishDisplayOrder();
+      for (const i of order) {
+        const progress = game.dishesProgress[i];
+        const stepName = progress >= 4 ? "完成！" : CUSTOM_STEPS[DISHES[i]][progress];
+        const fillPercent = (progress / 4) * 100;
+        const isDone = progress >= 4;
+        const isSelected = i === selectedIdx && !isDone;
+        const selectedClass = isSelected && !busy ? "selected" : "";
+        const extra = `${isDone ? " done-card" : ""}`;
+        grid.innerHTML += `<div class="dish-card ${selectedClass}${extra}" data-idx="${i}">
+          <div class="dish-emoji-slot" data-dish="${escapeHtml(DISHES[i])}" title="${escapeHtml(DISHES[i])}">
+            <div class="dish-emoji">${DISH_EMOJI[i]}</div>
+          </div>
+          <div class="dish-name">${dishWithEmojiByIndex(i)}</div>
+          <div class="step-progress"><div class="step-fill" style="width:${fillPercent}%"></div></div>
+          <div class="step-text">${escapeHtml(stepName)} (${progress}/4)</div>
+        </div>`;
+      }
+      grid.querySelectorAll(".dish-card").forEach((card) => {
+        card.addEventListener("click", () => {
+          if (game.roundEndLock) return;
+          const idx = parseInt(card.dataset.idx, 10);
+          if (game.dishesProgress[idx] >= 4) {
+            showAlertDialog("该菜已完成。");
+            return;
+          }
+          game.selectedDishIdx = idx;
+          renderUI();
+        });
+      });
+
+      const previewDiv = document.getElementById("previewArea");
+      if (previewTasks.length && currentStepIdx < 4) {
+        let previewHtml =
+          `<div class="preview-title">本轮分工预览（每人只做各菜「当前」可推进环节；多人同一环节时合作，掷骰前取各人成功率平均数）</div><div class="preview-grid">`;
+        for (const t of previewTasks) {
+          const stepName = CUSTOM_STEPS[t.dishName][t.stepIdx];
+          const mCount = getMasteryStarCount(t.member, t.dishName, t.stepIdx);
+          const starsHtml = formatMasteryStars(mCount);
+          const mainTag = t.isMain ? "（主厨）" : "";
+          const coopLine =
+            t.coopPartnerCount > 1
+              ? `<div class="preview-detail">同环节 ${t.coopPartnerCount} 人合作 · 结算取众人成功率平均数后掷一次骰</div>`
+              : "";
+          previewHtml += `<div class="preview-card">
+            <div class="preview-name">${escapeHtml(memberWithEmoji(t.member))}${escapeHtml(mainTag)}</div>
+            <div class="preview-detail">${dishWithEmojiByName(t.dishName)} · ${escapeHtml(stepName)}</div>
+            <div class="preview-detail">掌握度 ${starsHtml}</div>${coopLine}
+          </div>`;
+        }
+        previewHtml += `</div>`;
+        previewDiv.innerHTML = previewHtml;
+      } else if (currentStepIdx >= 4) {
+        previewDiv.innerHTML = `<div class="preview-title">当前主厨菜品已完成，请点击选择另一道未完成的菜</div>`;
+      } else {
+        previewDiv.innerHTML = `<div class="preview-title">请选择一道未完成的菜品</div>`;
+      }
+
+      const teamGrid = document.getElementById("teammatesGrid");
+      MEMBERS.filter((m) => m !== game.mainChar).forEach((m) => {
+        const isHelpSel = !game.isSpy && game.helpTarget === m;
+        const isFrameSel = game.isSpy && game.frameTarget === m;
+        const selClass = isHelpSel || isFrameSel ? " assist-selected" : "";
+        teamGrid.innerHTML += `<button type="button" class="teammate-card${selClass}" data-teammate="${escapeHtml(m)}">
+          <span>${escapeHtml(memberWithEmoji(m))}</span>
+        </button>`;
+      });
+      teamGrid.querySelectorAll("[data-teammate]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (busy) {
+            showAlertDialog("本轮已执行，请等待结算");
+            return;
+          }
+          const name = btn.getAttribute("data-teammate");
+          if (game.isSpy) {
+            game.frameTarget = game.frameTarget === name ? null : name;
+            game.helpTarget = null;
+          } else {
+            game.helpTarget = game.helpTarget === name ? null : name;
+            game.frameTarget = null;
+          }
+          renderUI();
+        });
+      });
+
+      document.getElementById("sabYes")?.addEventListener("click", () => {
+        if (busy) return;
+        game.intendSabotage = true;
+        renderUI();
+      });
+      document.getElementById("sabNo")?.addEventListener("click", () => {
+        if (busy) return;
+        game.intendSabotage = false;
+        renderUI();
+      });
+      document.getElementById("endRoundBtn")?.addEventListener("click", () => {
+        if (game.roundEndLock) return;
+        if (game.selectedDishIdx === undefined) {
+          showAlertDialog("请先选择一道菜");
+          return;
+        }
+        executeRoundAndResolve();
+      });
+    }
+
+    function initGame() {
+      const root = document.getElementById("gameRoot");
+      root.innerHTML = `<div class="game-container">
+        <h2 class="ice-title" style="margin:8px 0 16px;">炸厨房模拟器</h2>
+        <p style="text-align:center;color:#426987;line-height:1.65;">请选择本次主厨（身份随机：密探/勇士）。<br>开火前请留意：<br>⭐ 成员分工：对环节的擅长程度用★表示<br>🎭 失败原因：是故意的，还是不小心？<br>🥘 成败结算：这个环节，谁又动了手脚？</p>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:20px 0;">
+          ${MEMBERS.map((m) => `<button type="button" class="btn" data-mem="${m}">${escapeHtml(memberWithEmoji(m))}</button>`).join("")}
+        </div>
+      </div>`;
+      root.querySelectorAll("[data-mem]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          game.mainChar = btn.getAttribute("data-mem");
+          game.isSpy = Math.random() < 0.5;
+          const others = MEMBERS.filter((m) => m !== game.mainChar);
+          shuffleInPlace(others);
+          game.spyMates = [];
+          if (game.isSpy) {
+            game.spyMate = others[0];
+            game.sabotageLeft = 3;
+            game.warriorSpySabotageLeft = 0;
+          } else {
+            game.spyMates = [others[0], others[1]];
+            game.spyMate = others[0];
+            game.sabotageLeft = 0;
+            game.warriorSpySabotageLeft = 3;
+          }
+          game.dishesProgress = [0, 0, 0, 0, 0, 0, 0];
+          game.dishRunEpoch = [0, 0, 0, 0, 0, 0, 0];
+          game.round = 1;
+          game.dishNeedRedo = {};
+          game.dishCompletionOrder = [];
+          game.stepHistory = [];
+          game.settlementRecapLog = [];
+          game.mainRoundJournal = [];
+          game.helpTarget = null;
+          game.frameTarget = null;
+          game.dizzyCarbon = false;
+          game.flowState = false;
+          game.modeImpactNoteNextSettle = "";
+          game.skipMemberNext = null;
+          game.ffNextRoundDishIdx = null;
+          game.rewindNextRoundDishIdx = null;
+          game.guaranteedNext = null;
+          game.roundEndLock = false;
+          game.gameOver = false;
+          game.endSummary = null;
+          game.selectedDishIdx = 0;
+          game.previewSnapshotKey = "";
+          game.previewSnapshotTasks = null;
+          game.intendSabotage = false;
+          game.preAccusationDishCount = null;
+          game.spySabotageRounds = 0;
+          game.platterSabotageDishIndices = [];
+          game.everDizzyCarbon = false;
+          game.everFlowState = false;
+          // 准备弹窗内容
+const identityMsg = `
+  <p><strong>身份：你是【${game.isSpy ? "密探🕵️" : "勇士🛡️"}】</strong></p>
+  <p>🎯 胜利条件：${game.isSpy ? "终局需找出密探队友；若没找出则成功菜 +1，最终少于 5 道才算胜" : "至少 6 道菜成功，并在终局检举密探"}</p>
+  <p>${game.isSpy ? "🤝 有一名密探队友，甩锅给密探队友，你们将更容易成功。" : "⚠️ 其余队友中有 2 名密探，帮助他将让他不敢搞破坏。"}</p>
+`;
+document.getElementById("identityContent").innerHTML = identityMsg;
+const dlgIdentity = document.getElementById("dlgIdentity");
+dlgIdentity.showModal();
+
+// 绑定确认按钮（避免重复绑定）
+const confirmBtn = document.getElementById("btnIdentityConfirm");
+const startGame = () => {
+  dlgIdentity.close();
+  renderUI();
+  confirmBtn.removeEventListener("click", startGame);
+};
+confirmBtn.addEventListener("click", startGame);
+        });
+      });
+    }
+
+    function initSnowfall() {
+      const canvas = document.getElementById("snowCanvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const DPR_CAP = 1.5;
+      let width = 0;
+      let height = 0;
+      const flakes = [];
+      const FLAKE_COUNT = Math.min(70, Math.max(30, Math.floor((window.innerWidth * window.innerHeight) / 20000)));
+
+      function resetFlake(flake, fromTop) {
+        flake.x = Math.random() * width;
+        flake.y = fromTop ? -Math.random() * height : Math.random() * height;
+        flake.r = 1 + Math.random() * 2.8;
+        flake.speed = 0.28 + Math.random() * 0.85;
+        flake.swing = 0.08 + Math.random() * 0.45;
+        flake.angle = Math.random() * Math.PI * 2;
+        flake.spin = (Math.random() - 0.5) * 0.015;
+        flake.opacity = 0.25 + Math.random() * 0.5;
+      }
+
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      resize();
+      flakes.length = 0;
+      for (let i = 0; i < FLAKE_COUNT; i++) {
+        const f = {};
+        resetFlake(f, false);
+        flakes.push(f);
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, width, height);
+        for (const f of flakes) {
+          f.y += f.speed;
+          f.x += Math.sin(f.angle) * f.swing;
+          f.angle += 0.01;
+          f.spin += (Math.random() - 0.5) * 0.001;
+
+          if (f.y > height + 14 || f.x < -20 || f.x > width + 20) {
+            resetFlake(f, true);
+          }
+
+          ctx.save();
+          ctx.translate(f.x, f.y);
+          ctx.rotate(f.spin * 60);
+          ctx.fillStyle = `rgba(220, 244, 255, ${f.opacity})`;
+          ctx.beginPath();
+          ctx.arc(0, 0, f.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        requestAnimationFrame(draw);
+      }
+
+      window.addEventListener("resize", resize, { passive: true });
+      requestAnimationFrame(draw);
+    }
+
+    initSnowfall();
+    initGame();
+  </script>
+</body>
+</html>
